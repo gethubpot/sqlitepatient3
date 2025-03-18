@@ -72,7 +72,7 @@ dependencies {
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.appcompat)
     implementation(libs.activity.compose)
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Java 21 desugaring support
     coreLibraryDesugaring(libs.desugar.jdk.libs)
@@ -109,11 +109,11 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     // Fix for kotlinx-metadata-jvm version compatibility
-    implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.7.0")
+    implementation(libs.kotlinx.metadata.jvm)
 
     // Testing
     testImplementation(libs.junit)
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:1.9.22")
+    testImplementation(libs.kotlin.test.junit)
 
     // Android Testing
     androidTestImplementation(libs.androidx.test.junit)
@@ -122,15 +122,15 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test.junit4)
 
     // Room Testing - Make sure this is included
-    androidTestImplementation("androidx.room:room-testing:${libs.versions.room.get()}")
+    androidTestImplementation(libs.androidx.room.testing)
 
     // Additional testing dependencies
-    androidTestImplementation("androidx.test:core:1.5.0")
-    androidTestImplementation("androidx.test:runner:1.5.2")
-    androidTestImplementation("androidx.test:rules:1.5.0")
-    androidTestImplementation("androidx.test.ext:truth:1.5.0")
-    androidTestImplementation("junit:junit:4.13.2") // Make sure JUnit is available for androidTest
-    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    androidTestImplementation(libs.androidx.core)
+    androidTestImplementation(libs.androidx.runner)
+    androidTestImplementation(libs.androidx.rules)
+    androidTestImplementation(libs.androidx.truth)
+    androidTestImplementation(libs.junit) // Make sure JUnit is available for androidTest
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
