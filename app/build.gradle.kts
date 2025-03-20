@@ -8,12 +8,12 @@ plugins {
 
 android {
     namespace = "com.example.sqlitepatient3"
-    compileSdk = 35  // Updated to Android 15 (API 35)
+    compileSdk = 35  // Android 15 (API 35)
 
     defaultConfig {
         applicationId = "com.example.sqlitepatient3"
         minSdk = 33  // Android 13
-        targetSdk = 35  // Updated to Android 15 (API 35)
+        targetSdk = 35  // Android 15 (API 35)
         versionCode = 1
         versionName = "1.0"
 
@@ -54,16 +54,56 @@ android {
         }
     }
 
-    // Adding this to support your test resources
+    // Testing configuration
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
         }
     }
-}
 
-ksp {
-    arg("room.schemaLocation", layout.buildDirectory.dir("schemas").get().asFile.absolutePath)
+    // Room schema export location - proper configuration for migration testing
+    // This will be used by both KSP to export schemas and by tests to verify them
+    val schemaDir = "$projectDir/schemas"
+
+    // Configure KSP to export schemas
+    ksp {
+        arg("room.schemaLocation", schemaDir)
+        arg("room.incremental", "true")
+        arg("room.expandProjection", "true")
+    }
+
+    // Configure source sets to avoid duplicate content roots
+    sourceSets {
+        // Main source set includes the schemas as assets
+        getByName("main") {
+            assets {
+                // Exclude the schemas directory from main assets to avoid duplication
+                // We'll add it back during the packaging task
+                srcDir(schemaDir)
+            }
+        }
+
+        // AndroidTest source set will use a different resource directory
+        getByName("androidTest") {
+            // We'll create a directory for the test to access the schemas
+            assets {
+                // Do not directly reference the same schema directory
+                // The schemas will be copied to the test directory by our custom task
+            }
+        }
+    }
+
+    // Create a task to copy schemas to test assets
+    tasks.register<Copy>("copySchemaToTestAssets") {
+        from(schemaDir)
+        into("$projectDir/src/androidTest/assets/schemas")
+        // Make sure this task runs before compiling androidTest
+        tasks.whenTaskAdded {
+            if (name.contains("compileDebugAndroidTestSources")) {
+                dependsOn("copySchemaToTestAssets")
+            }
+        }
+    }
 }
 
 dependencies {
@@ -92,7 +132,7 @@ dependencies {
     // Room Database
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    ksp(libs.room.compiler)  // Already using KSP for Room, which is good
+    ksp(libs.room.compiler)  // Using KSP for Room
     implementation(libs.sqlite)
 
     // DataStore Preferences
@@ -104,32 +144,44 @@ dependencies {
 
     // Hilt for Dependency Injection
     implementation(libs.hilt.android)
-    // Change from kapt to ksp for Hilt
-    ksp(libs.hilt.compiler)  // Changed from kapt to ksp
+    ksp(libs.hilt.compiler)  // Using KSP for Hilt
     implementation(libs.hilt.navigation.compose)
 
     // Fix for kotlinx-metadata-jvm version compatibility
     implementation(libs.kotlinx.metadata.jvm)
 
-    // Testing
+    // Testing - Unit tests
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)
 
-    // Direct implementations for Android Testing
-    androidTestImplementation("androidx.room:room-testing:2.6.1")
-    androidTestImplementation("androidx.test:core:1.6.1")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test:runner:1.6.2")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation("androidx.test:rules:1.6.1")
-    androidTestImplementation("androidx.test.ext:truth:1.6.0")
-    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
-    androidTestImplementation("junit:junit:4.13.2")
+    // Testing - Instrumented tests
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.core)
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.runner)
+    androidTestImplementation(libs.espresso.core)
+    androidTestImplementation(libs.androidx.rules)
+    androidTestImplementation(libs.androidx.truth)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.junit)
 
-    // Keep these other testing dependencies
+    // Migration testing dependencies
+    androidTestImplementation("androidx.test:core-ktx:1.6.0")
+    androidTestImplementation("androidx.test.ext:junit-ktx:1.2.0")
+    androidTestImplementation("androidx.sqlite:sqlite-framework:2.4.0")
+
+    // Compose testing
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
 
+    // Debug implementations
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
+}
+
+// Make sure the copy schema task runs before any test compilation
+tasks.whenTaskAdded {
+    if (name.contains("compileDebugAndroidTestKotlin") || name.contains("compileDebugAndroidTestJava")) {
+        dependsOn("copySchemaToTestAssets")
+    }
 }

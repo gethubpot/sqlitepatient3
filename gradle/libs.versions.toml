@@ -43,6 +43,7 @@ runner = "1.6.2"
 
 # Java 21 desugaring
 desugar-jdk = "2.1.5"
+sqlite-framework = "2.4.0"
 truth = "1.6.0"
 work-runtime-ktx = "2.10.0"
 
@@ -52,6 +53,7 @@ androidx-core = { module = "androidx.test:core", version.ref = "rules" }
 androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
 androidx-rules = { module = "androidx.test:rules", version.ref = "rules" }
 androidx-runner = { module = "androidx.test:runner", version.ref = "runner" }
+androidx-sqlite-framework = { module = "androidx.sqlite:sqlite-framework", version.ref = "sqlite-framework" }
 androidx-truth = { module = "androidx.test.ext:truth", version.ref = "truth" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work-runtime-ktx" }
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
