@@ -20,7 +20,7 @@ import com.example.sqlitepatient3.domain.model.Patient
 import com.example.sqlitepatient3.presentation.components.AddFab
 import com.example.sqlitepatient3.presentation.components.EmptyStateScaffold
 import com.example.sqlitepatient3.presentation.components.LoadingScaffold
-import com.example.sqlitepatient3.ui.theme.SQLitePatient2Theme
+import com.example.sqlitepatient3.ui.theme.SQLitePatient3Theme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -423,7 +423,7 @@ fun TagIcon(
 @Preview(showBackground = true)
 @Composable
 fun PatientListItemPreview() {
-    SQLitePatient2Theme {
+    SQLitePatient3Theme {
         PatientListItem(
             patient = Patient(
                 id = 1,

@@ -1,20 +1,22 @@
 package com.example.sqlitepatient3.data.local.database
 
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
-import org.junit.After
-import org.junit.Assert.*
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
-import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.core.app.ApplicationProvider
-import android.util.Log
-import java.io.IOException
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.room.testing.MigrationTestHelper
+import org.junit.runner.RunWith
+import org.junit.Rule
+import org.junit.Before
+import org.junit.After
+import org.junit.Test
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 
 /**
  * Test suite for database migrations.

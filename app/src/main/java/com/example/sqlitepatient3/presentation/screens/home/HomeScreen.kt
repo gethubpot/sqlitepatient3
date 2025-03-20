@@ -13,7 +13,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.sqlitepatient3.ui.theme.SQLitePatient2Theme
+import com.example.sqlitepatient3.ui.theme.SQLitePatient3Theme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -207,7 +207,7 @@ fun ActionButton(
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
-    SQLitePatient2Theme {
+    SQLitePatient3Theme {
         // Create a preview-compatible HomeScreen
         Column(
             modifier = Modifier

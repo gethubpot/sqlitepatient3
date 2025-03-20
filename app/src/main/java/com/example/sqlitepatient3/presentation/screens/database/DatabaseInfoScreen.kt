@@ -100,7 +100,9 @@ fun DatabaseInfoScreen(
                                 InfoRow("Database Version:", "${dbInfo.version}")
 
                                 if (dbInfo.lastMigrationDate != null) {
-                                    InfoRow("Last Migration:", dbInfo.lastMigrationDate)
+                                    dbInfo.lastMigrationDate?.let { lastMigrationDate ->
+                                        InfoRow("Last Migration:", lastMigrationDate)
+                                    }
                                 }
 
                                 InfoRow("Database Size:", dbInfo.databaseSizeFormatted)
@@ -113,7 +115,9 @@ fun DatabaseInfoScreen(
                                 InfoRow("Indices:", "${dbInfo.indexCount}")
 
                                 if (dbInfo.lastMaintenanceDate != null) {
-                                    InfoRow("Last Maintenance:", dbInfo.lastMaintenanceDate)
+                                    dbInfo.lastMaintenanceDate?.let { lastMaintenanceDate ->
+                                        InfoRow("Last Maintenance:", lastMaintenanceDate)
+                                    }
                                 }
 
                                 InfoRow(
@@ -126,7 +130,9 @@ fun DatabaseInfoScreen(
                                 )
 
                                 if (dbInfo.lastBackupDate != null) {
-                                    InfoRow("Last Backup:", dbInfo.lastBackupDate)
+                                    dbInfo.lastBackupDate?.let { lastBackupDate ->
+                                        InfoRow("Last Backup:", lastBackupDate)
+                                    }
                                 }
                             }
                         }

@@ -14,6 +14,6 @@ interface SystemPropertiesDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun setProperty(property: SystemPropertyEntity)
 
-    @Query("SELECT value FROM system_properties WHERE key = :key")
+    @Query("SELECT value FROM system_properties WHERE `key` = :key")
     suspend fun getProperty(key: String): String?
 }

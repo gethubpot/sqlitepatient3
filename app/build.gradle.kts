@@ -6,14 +6,27 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Room schema export location
+val schemaDir = "$projectDir/schemas"
+
+// Create a task to copy schemas to test assets
+tasks.register<Copy>("copySchemaToTestAssets") {
+    from(schemaDir)
+    into("$projectDir/src/androidTest/assets/databases")
+
+    doFirst {
+        file("$projectDir/src/androidTest/assets/databases").mkdirs()
+    }
+}
+
 android {
     namespace = "com.example.sqlitepatient3"
-    compileSdk = 35  // Android 15 (API 35)
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.sqlitepatient3"
-        minSdk = 33  // Android 13
-        targetSdk = 35  // Android 15 (API 35)
+        minSdk = 33
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -54,53 +67,22 @@ android {
         }
     }
 
-    // Testing configuration
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
         }
     }
 
-    // Room schema export location - proper configuration for migration testing
-    // This will be used by both KSP to export schemas and by tests to verify them
-    val schemaDir = "$projectDir/schemas"
-
-    // Configure KSP to export schemas
     ksp {
         arg("room.schemaLocation", schemaDir)
         arg("room.incremental", "true")
         arg("room.expandProjection", "true")
     }
 
-    // Configure source sets to avoid duplicate content roots
     sourceSets {
-        // Main source set includes the schemas as assets
-        getByName("main") {
-            assets {
-                // Exclude the schemas directory from main assets to avoid duplication
-                // We'll add it back during the packaging task
-                srcDir(schemaDir)
-            }
-        }
-
-        // AndroidTest source set will use a different resource directory
         getByName("androidTest") {
-            // We'll create a directory for the test to access the schemas
             assets {
-                // Do not directly reference the same schema directory
-                // The schemas will be copied to the test directory by our custom task
-            }
-        }
-    }
-
-    // Create a task to copy schemas to test assets
-    tasks.register<Copy>("copySchemaToTestAssets") {
-        from(schemaDir)
-        into("$projectDir/src/androidTest/assets/schemas")
-        // Make sure this task runs before compiling androidTest
-        tasks.whenTaskAdded {
-            if (name.contains("compileDebugAndroidTestSources")) {
-                dependsOn("copySchemaToTestAssets")
+                srcDir(schemaDir)
             }
         }
     }
@@ -132,7 +114,7 @@ dependencies {
     // Room Database
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    ksp(libs.room.compiler)  // Using KSP for Room
+    ksp(libs.room.compiler)
     implementation(libs.sqlite)
 
     // DataStore Preferences
@@ -142,12 +124,12 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
 
-    // Hilt for Dependency Injection
+    // Hilt
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)  // Using KSP for Hilt
+    ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Fix for kotlinx-metadata-jvm version compatibility
+    // Fix for kotlinx-metadata-jvm
     implementation(libs.kotlinx.metadata.jvm)
 
     // Testing - Unit tests
@@ -165,7 +147,7 @@ dependencies {
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.junit)
 
-    // Migration testing dependencies
+    // Migration testing
     androidTestImplementation("androidx.test:core-ktx:1.6.0")
     androidTestImplementation("androidx.test.ext:junit-ktx:1.2.0")
     androidTestImplementation("androidx.sqlite:sqlite-framework:2.4.0")
@@ -179,9 +161,18 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
 }
 
-// Make sure the copy schema task runs before any test compilation
+tasks.configureEach {
+    when (name) {
+        "mergeDebugAndroidTestAssets" -> {
+            dependsOn("copySchemaToTestAssets")
+        }
+    }
+}
+
 tasks.whenTaskAdded {
-    if (name.contains("compileDebugAndroidTestKotlin") || name.contains("compileDebugAndroidTestJava")) {
+    if (name.contains("compileDebugAndroidTestKotlin") ||
+        name.contains("compileDebugAndroidTestJava") ||
+        name.contains("compileDebugAndroidTestSources")) {
         dependsOn("copySchemaToTestAssets")
     }
 }

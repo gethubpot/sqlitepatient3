@@ -2,17 +2,18 @@ package com.example.sqlitepatient3.data.local.database
 
 import android.content.Context
 import android.util.Log
+import androidx.room.Entity
+import androidx.room.Ignore
 import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.test.platform.app.InstrumentationRegistry
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import org.junit.Assert
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
+import kotlin.collections.iterator
 
 /**
  * Utility for programmatically verifying database migrations against entity definitions.
@@ -41,7 +42,7 @@ class MigrationVerificationUtils {
                     Log.i(TAG, "Verifying entity: ${entityClass.simpleName}")
 
                     // Get entity table name from @Entity annotation
-                    val entityAnnotation = entityClass.getAnnotation(androidx.room.Entity::class.java)
+                    val entityAnnotation = entityClass.getAnnotation(Entity::class.java)
                     val tableName = entityAnnotation?.tableName ?: entityClass.simpleName.lowercase()
 
                     // Get actual columns from database
@@ -289,7 +290,7 @@ class MigrationVerificationUtils {
                     }
 
                     // Skip fields marked with @Ignore annotation
-                    if (field.isAnnotationPresent(androidx.room.Ignore::class.java)) {
+                    if (field.isAnnotationPresent(Ignore::class.java)) {
                         continue
                     }
 
@@ -367,7 +368,7 @@ class MigrationVerificationUtils {
             val entityIndices = mutableListOf<IndexInfo>()
 
             // Look for @Index annotations in the Entity
-            val entityAnnotation = entityClass.getAnnotation(androidx.room.Entity::class.java)
+            val entityAnnotation = entityClass.getAnnotation(Entity::class.java)
             entityAnnotation?.indices?.forEach { indexAnnotation ->
                 val columns = indexAnnotation.value
                 val name = if (indexAnnotation.name.isNotEmpty())
