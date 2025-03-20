@@ -1,5 +1,6 @@
 [versions]
 # Core Android versions
+junit-ktx = "1.2.1"
 kotlin = "2.1.10"  # Changed to realistic version (2.1.10 is too far in the future)
 agp = "8.9.0"     # Changed to realistic version
 kotlin-test-junit = "1.9.22"
@@ -50,6 +51,8 @@ work-runtime-ktx = "2.10.0"
 [libraries]
 # Core Android
 androidx-core = { module = "androidx.test:core", version.ref = "rules" }
+androidx-core-ktx = { module = "androidx.test:core-ktx", version.ref = "rules" }
+androidx-junit-ktx = { module = "androidx.test.ext:junit-ktx", version.ref = "junit-ktx" }
 androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
 androidx-rules = { module = "androidx.test:rules", version.ref = "rules" }
 androidx-runner = { module = "androidx.test:runner", version.ref = "runner" }

@@ -148,9 +148,9 @@ dependencies {
     androidTestImplementation(libs.junit)
 
     // Migration testing
-    androidTestImplementation("androidx.test:core-ktx:1.6.0")
-    androidTestImplementation("androidx.test.ext:junit-ktx:1.2.0")
-    androidTestImplementation("androidx.sqlite:sqlite-framework:2.4.0")
+    androidTestImplementation(libs.androidx.core.ktx)
+    androidTestImplementation(libs.androidx.junit.ktx)
+    androidTestImplementation(libs.androidx.sqlite.framework)
 
     // Compose testing
     androidTestImplementation(platform(libs.compose.bom))
