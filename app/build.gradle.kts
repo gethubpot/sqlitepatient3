@@ -115,22 +115,20 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)
 
-    // Android Testing
-    androidTestImplementation(libs.androidx.test.junit)
-    androidTestImplementation(libs.espresso.core)
+    // Direct implementations for Android Testing
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test.ext:truth:1.6.0")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    androidTestImplementation("junit:junit:4.13.2")
+
+    // Keep these other testing dependencies
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
-
-    // Room Testing - Make sure this is included
-    androidTestImplementation(libs.androidx.room.testing)
-
-    // Additional testing dependencies
-    androidTestImplementation(libs.androidx.core)
-    androidTestImplementation(libs.androidx.runner)
-    androidTestImplementation(libs.androidx.rules)
-    androidTestImplementation(libs.androidx.truth)
-    androidTestImplementation(libs.junit) // Make sure JUnit is available for androidTest
-    androidTestImplementation(libs.kotlinx.coroutines.test)
 
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
