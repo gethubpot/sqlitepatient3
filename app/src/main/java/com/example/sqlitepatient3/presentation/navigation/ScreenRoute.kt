@@ -43,7 +43,9 @@ sealed class ScreenRoute(val route: String) {
         }
     }
     object ImportExport : ScreenRoute("import_export")
+    object DataImport : ScreenRoute("data_import")
+    object DataExport : ScreenRoute("data_export")
     object Settings : ScreenRoute("settings")
     object DatabaseInfo : ScreenRoute("database_info")
-    object BackupRestore : ScreenRoute("backup_restore")  // Added new route for backup/restore screen
+    object BackupRestore : ScreenRoute("backup_restore")
 }

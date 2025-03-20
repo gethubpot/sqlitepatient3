@@ -1,0 +1,286 @@
+package com.example.sqlitepatient3.data.importexport
+
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import com.example.sqlitepatient3.domain.model.Facility
+import com.example.sqlitepatient3.domain.repository.FacilityRepository
+import com.example.sqlitepatient3.domain.repository.PatientRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStreamReader
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.text.iterator
+
+/**
+ * Helper class for handling CSV import/export
+ */
+@Singleton
+class CsvImporter @Inject constructor(
+    private val patientRepository: PatientRepository,
+    private val facilityRepository: FacilityRepository
+) {
+    private val TAG = "CsvImporter"
+    private val dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+
+    /**
+     * Imports patient data from a CSV file
+     * Returns a pair of (successCount, errorCount)
+     */
+    suspend fun importPatients(context: Context, fileUri: Uri): Pair<Int, Int> =
+        withContext(Dispatchers.IO) {
+            var successCount = 0
+            var errorCount = 0
+
+            try {
+                // Read CSV content
+                val csvContent = readCsvContent(context, fileUri)
+                val lines = csvContent.lines().filter { it.isNotBlank() }
+
+                if (lines.isEmpty()) {
+                    return@withContext Pair(0, 0)
+                }
+
+                // Parse header
+                val header = parseCsvLine(lines[0])
+                val headerMap =
+                    header.mapIndexed { index, columnName -> columnName.trim() to index }.toMap()
+
+                // Check required columns
+                if (!headerMap.containsKey("firstName") || !headerMap.containsKey("lastName")) {
+                    throw IOException("CSV must contain firstName and lastName columns")
+                }
+
+                // Get facility code to ID mapping
+                val facilityCodeMap = mutableMapOf<String, Long>()
+                facilityRepository.getAllFacilities().first().forEach { facility ->
+                    facility.facilityCode?.let { code ->
+                        facilityCodeMap[code] = facility.id
+                    }
+                }
+
+                // Process each data row
+                for (i in 1 until lines.size) {
+                    try {
+                        val values = parseCsvLine(lines[i])
+                        if (values.size < 2) continue // Skip empty lines
+
+                        val firstName = getColumnValue(values, headerMap, "firstName")
+                        val lastName = getColumnValue(values, headerMap, "lastName")
+
+                        if (firstName.isBlank() || lastName.isBlank()) {
+                            errorCount++
+                            continue
+                        }
+
+                        // Optional fields
+                        val dateOfBirthStr = getColumnValue(values, headerMap, "dateOfBirth")
+                        val dateOfBirth = if (dateOfBirthStr.isNotBlank()) {
+                            try {
+                                LocalDate.parse(dateOfBirthStr, dateFormatter)
+                            } catch (e: DateTimeParseException) {
+                                null
+                            }
+                        } else null
+
+                        val isMale = getColumnValue(values, headerMap, "isMale").equals(
+                            "true",
+                            ignoreCase = true
+                        )
+
+                        val medicareNumber = getColumnValue(values, headerMap, "medicareNumber")
+
+                        val facilityCode = getColumnValue(values, headerMap, "facilityCode")
+                        val facilityId =
+                            if (facilityCode.isNotBlank()) facilityCodeMap[facilityCode] else null
+
+                        // Additional flags
+                        val isHospice = getColumnValue(values, headerMap, "isHospice").equals(
+                            "true",
+                            ignoreCase = true
+                        )
+                        val onCcm = getColumnValue(values, headerMap, "onCcm").equals(
+                            "true",
+                            ignoreCase = true
+                        )
+                        val onPsych = getColumnValue(values, headerMap, "onPsych").equals(
+                            "true",
+                            ignoreCase = true
+                        )
+
+                        // Insert the patient
+                        val patientId = patientRepository.insertPatient(
+                            firstName = firstName,
+                            lastName = lastName,
+                            dateOfBirth = dateOfBirth,
+                            isMale = isMale,
+                            facilityId = facilityId,
+                            medicareNumber = medicareNumber
+                        )
+
+                        // If the patient has special flags, update them separately
+                        if (isHospice || onCcm || onPsych) {
+                            val patient = patientRepository.getPatientById(patientId)
+                            if (patient != null) {
+                                patientRepository.updatePatientHospiceStatus(patientId, isHospice)
+                                patientRepository.updatePatientCcmStatus(patientId, onCcm)
+                                patientRepository.updatePatientPsychStatus(patientId, onPsych)
+                            }
+                        }
+
+                        successCount++
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing patient row ${i + 1}", e)
+                        errorCount++
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error importing patients", e)
+                throw e
+            }
+
+            return@withContext Pair(successCount, errorCount)
+        }
+
+    /**
+     * Imports facility data from a CSV file
+     * Returns a pair of (successCount, errorCount)
+     */
+    suspend fun importFacilities(context: Context, fileUri: Uri): Pair<Int, Int> =
+        withContext(Dispatchers.IO) {
+            var successCount = 0
+            var errorCount = 0
+
+            try {
+                // Read CSV content
+                val csvContent = readCsvContent(context, fileUri)
+                val lines = csvContent.lines().filter { it.isNotBlank() }
+
+                if (lines.isEmpty()) {
+                    return@withContext Pair(0, 0)
+                }
+
+                // Parse header
+                val header = parseCsvLine(lines[0])
+                val headerMap =
+                    header.mapIndexed { index, columnName -> columnName.trim() to index }.toMap()
+
+                // Check required columns
+                if (!headerMap.containsKey("name")) {
+                    throw IOException("CSV must contain name column")
+                }
+
+                // Process each data row
+                for (i in 1 until lines.size) {
+                    try {
+                        val values = parseCsvLine(lines[i])
+                        if (values.size < 1) continue // Skip empty lines
+
+                        val name = getColumnValue(values, headerMap, "name")
+
+                        if (name.isBlank()) {
+                            errorCount++
+                            continue
+                        }
+
+                        // Optional fields
+                        val facilityCode = getColumnValue(values, headerMap, "facilityCode")
+                        val address1 = getColumnValue(values, headerMap, "address1")
+                        val address2 = getColumnValue(values, headerMap, "address2")
+                        val city = getColumnValue(values, headerMap, "city")
+                        val state = getColumnValue(values, headerMap, "state")
+                        val zipCode = getColumnValue(values, headerMap, "zipCode")
+                        val phoneNumber = getColumnValue(values, headerMap, "phoneNumber")
+                        val faxNumber = getColumnValue(values, headerMap, "faxNumber")
+                        val email = getColumnValue(values, headerMap, "email")
+                        val isActive = getColumnValue(values, headerMap, "isActive").equals(
+                            "true",
+                            ignoreCase = true
+                        )
+
+                        // Create facility object
+                        val facility = Facility(
+                            name = name,
+                            facilityCode = if (facilityCode.isNotBlank()) facilityCode else null,
+                            address1 = if (address1.isNotBlank()) address1 else null,
+                            address2 = if (address2.isNotBlank()) address2 else null,
+                            city = if (city.isNotBlank()) city else null,
+                            state = if (state.isNotBlank()) state else null,
+                            zipCode = if (zipCode.isNotBlank()) zipCode else null,
+                            phoneNumber = if (phoneNumber.isNotBlank()) phoneNumber else null,
+                            faxNumber = if (faxNumber.isNotBlank()) faxNumber else null,
+                            email = if (email.isNotBlank()) email else null,
+                            isActive = isActive
+                        )
+
+                        // Insert facility
+                        facilityRepository.insertFacility(facility)
+
+                        successCount++
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing facility row ${i + 1}", e)
+                        errorCount++
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error importing facilities", e)
+                throw e
+            }
+
+            return@withContext Pair(successCount, errorCount)
+        }
+
+    /**
+     * Helper function to read CSV content from a URI
+     */
+    private fun readCsvContent(context: Context, fileUri: Uri): String {
+        context.contentResolver.openInputStream(fileUri)?.use { inputStream ->
+            val reader = BufferedReader(InputStreamReader(inputStream))
+            return reader.readText()
+        } ?: throw IOException("Could not open file")
+    }
+
+    /**
+     * Safely gets a column value or returns empty string if column doesn't exist
+     */
+    private fun getColumnValue(
+        values: List<String>,
+        headerMap: Map<String, Int>,
+        columnName: String
+    ): String {
+        val index = headerMap[columnName] ?: return ""
+        return if (index < values.size) values[index].trim() else ""
+    }
+
+    /**
+     * Parse a CSV line, handling quoted fields
+     */
+    private fun parseCsvLine(line: String): List<String> {
+        val result = mutableListOf<String>()
+        var inQuotes = false
+        var currentValue = StringBuilder()
+
+        for (char in line) {
+            when {
+                char == '"' -> inQuotes = !inQuotes
+                char == ',' && !inQuotes -> {
+                    result.add(currentValue.toString().trim())
+                    currentValue = StringBuilder()
+                }
+
+                else -> currentValue.append(char)
+            }
+        }
+
+        // Add the last field
+        result.add(currentValue.toString().trim())
+        return result
+    }
+}

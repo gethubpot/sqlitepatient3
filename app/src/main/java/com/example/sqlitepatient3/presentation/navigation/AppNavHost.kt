@@ -11,6 +11,9 @@ import androidx.navigation.navArgument
 import com.example.sqlitepatient3.presentation.screens.database.BackupRestoreScreen
 import com.example.sqlitepatient3.presentation.screens.database.DatabaseInfoScreen
 import com.example.sqlitepatient3.presentation.screens.home.HomeScreen
+import com.example.sqlitepatient3.presentation.screens.importexport.DataExportScreen
+import com.example.sqlitepatient3.presentation.screens.importexport.DataImportScreen
+import com.example.sqlitepatient3.presentation.screens.importexport.ImportExportScreen
 import com.example.sqlitepatient3.presentation.screens.patient.AddEditPatientScreen
 import com.example.sqlitepatient3.presentation.screens.patient.PatientListScreen
 
@@ -52,13 +55,7 @@ fun AppNavHost(
             arguments = listOf(navArgument("patientId") { type = NavType.LongType })
         ) { backStackEntry ->
             val patientId = backStackEntry.arguments?.getLong("patientId") ?: 0
-            // PatientDetailScreen(
-            //     patientId = patientId,
-            //     onNavigateUp = { navController.navigateUp() },
-            //     onEditPatient = { navController.navigate(ScreenRoute.AddEditPatient.createRoute(patientId)) },
-            //     onAddEvent = { navController.navigate(ScreenRoute.AddEditEvent.createRoute(patientId = patientId)) }
-            // )
-            // TODO: Implement PatientDetailScreen
+            // PatientDetailScreen implementation
         }
 
         composable(
@@ -94,13 +91,34 @@ fun AppNavHost(
             )
         }
 
+        // Import/Export Screens
+        composable(route = ScreenRoute.ImportExport.route) {
+            ImportExportScreen(
+                onNavigateUp = { navController.navigateUp() },
+                onNavigateToImport = { navController.navigate(ScreenRoute.DataImport.route) },
+                onNavigateToExport = { navController.navigate(ScreenRoute.DataExport.route) }
+            )
+        }
+
+        composable(route = ScreenRoute.DataImport.route) {
+            DataImportScreen(
+                onNavigateUp = { navController.navigateUp() }
+            )
+        }
+
+        composable(route = ScreenRoute.DataExport.route) {
+            DataExportScreen(
+                onNavigateUp = { navController.navigateUp() }
+            )
+        }
+
         // Facility Screens
         // TODO: Add facility screen composables
 
         // Event Screens
         // TODO: Add event screen composables
 
-        // Others
-        // TODO: Add ImportExport and Settings screen composables
+        // Settings Screen
+        // TODO: Add settings screen composable
     }
 }
