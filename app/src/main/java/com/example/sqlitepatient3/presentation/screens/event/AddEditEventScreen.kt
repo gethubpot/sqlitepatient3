@@ -64,15 +64,20 @@ fun AddEditEventScreen(
     val noteText by viewModel.noteText.collectAsState()
     val followUpRecurrence by viewModel.followUpRecurrence.collectAsState()
 
+    // Add state for patient search
+    val patientSearchQuery by viewModel.patientSearchQuery.collectAsState()
+    val filteredPatients by viewModel.filteredPatients.collectAsState()
+
     // State variables for UI components
     var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
-    var patientsDropdownExpanded by remember { mutableStateOf(false) }
     var eventTypesDropdownExpanded by remember { mutableStateOf(false) }
     var visitTypeDropdownExpanded by remember { mutableStateOf(false) }
     var visitLocationDropdownExpanded by remember { mutableStateOf(false) }
     var followUpRecurrenceDropdownExpanded by remember { mutableStateOf(false) }
+
+    // Replace the dropdown expanded state with search results expanded state
+    var showPatientResults by remember { mutableStateOf(false) }
 
     // If save was successful, navigate back
     LaunchedEffect(saveSuccess) {
@@ -152,49 +157,105 @@ fun AddEditEventScreen(
             // Basic Information Section
             SectionTitle(title = "Basic Information")
 
-            // Patient Selection
-            Box(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                ExposedDropdownMenuBox(
-                    expanded = patientsDropdownExpanded,
-                    onExpandedChange = { patientsDropdownExpanded = it }
-                ) {
+            // Patient Selection with Search-as-you-type
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // If a patient is already selected, show their name with an option to clear
+                if (selectedPatient != null) {
                     OutlinedTextField(
-                        value = selectedPatient?.let { "${it.lastName}, ${it.firstName}" } ?: "",
+                        value = "${selectedPatient!!.lastName}, ${selectedPatient!!.firstName}",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Patient*") },
+                        label = { Text("Selected Patient*") },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = null
                             )
                         },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = patientsDropdownExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
+                        trailingIcon = {
+                            IconButton(onClick = { viewModel.setPatientId(null) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear Patient"
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                } else {
+                    // Search field
+                    OutlinedTextField(
+                        value = patientSearchQuery,
+                        onValueChange = {
+                            viewModel.setPatientSearchQuery(it)
+                            showPatientResults = it.isNotBlank()
+                        },
+                        label = { Text("Search Patient*") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null
+                            )
+                        },
+                        trailingIcon = {
+                            if (patientSearchQuery.isNotBlank()) {
+                                IconButton(onClick = { viewModel.setPatientSearchQuery("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear Search"
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
 
-                    ExposedDropdownMenu(
-                        expanded = patientsDropdownExpanded,
-                        onDismissRequest = { patientsDropdownExpanded = false }
-                    ) {
-                        patients.forEach { patient ->
-                            DropdownMenuItem(
-                                text = {
+                    // Search results
+                    if (showPatientResults && patientSearchQuery.isNotBlank()) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                if (filteredPatients.isEmpty()) {
                                     Text(
-                                        text = "${patient.lastName}, ${patient.firstName}",
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        text = "No matching patients found",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                },
-                                onClick = {
-                                    viewModel.setPatientId(patient.id)
-                                    patientsDropdownExpanded = false
+                                } else {
+                                    filteredPatients.forEach { patient ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    viewModel.setPatientId(patient.id)
+                                                    viewModel.setPatientSearchQuery("")
+                                                    showPatientResults = false
+                                                }
+                                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "${patient.lastName}, ${patient.firstName}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Divider()
+                                    }
                                 }
-                            )
+                            }
                         }
                     }
                 }
@@ -344,31 +405,6 @@ fun AddEditEventScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Time Selection
-            OutlinedTextField(
-                value = eventDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
-                onValueChange = { },
-                label = { Text("Time*") },
-                readOnly = true,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.AccessTime,
-                        contentDescription = null
-                    )
-                },
-                trailingIcon = {
-                    IconButton(onClick = { showTimePicker = true }) {
-                        Icon(
-                            imageVector = Icons.Default.AccessTime,
-                            contentDescription = "Select Time"
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
 
             // Event Duration
             OutlinedTextField(
@@ -478,18 +514,6 @@ fun AddEditEventScreen(
         )
     }
 
-    // Time Picker Dialog
-    if (showTimePicker) {
-        TimePickerDialog(
-            onTimeSelected = { hour, minute ->
-                viewModel.setEventTime(LocalTime.of(hour, minute))
-            },
-            onDismiss = { showTimePicker = false },
-            initialHour = eventDateTime.hour,
-            initialMinute = eventDateTime.minute
-        )
-    }
-
     // Cancel Confirmation Dialog
     if (showCancelDialog) {
         ConfirmationDialog(
@@ -499,47 +523,4 @@ fun AddEditEventScreen(
             onDismiss = { showCancelDialog = false }
         )
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TimePickerDialog(
-    onTimeSelected: (hour: Int, minute: Int) -> Unit,
-    onDismiss: () -> Unit,
-    initialHour: Int = 12,
-    initialMinute: Int = 0
-) {
-    val timePickerState = rememberTimePickerState(
-        initialHour = initialHour,
-        initialMinute = initialMinute,
-        is24Hour = true
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onTimeSelected(timePickerState.hour, timePickerState.minute)
-                    onDismiss()
-                }
-            ) {
-                Text("OK")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-        title = { Text("Select Time") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                TimePicker(state = timePickerState)
-            }
-        }
-    )
 }

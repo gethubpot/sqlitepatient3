@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -35,6 +36,33 @@ class AddEditEventViewModel @Inject constructor(
     private val getPatientByIdUseCase: GetPatientByIdUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+    // Add these properties for patient search
+    private val _patientSearchQuery = MutableStateFlow("")
+    val patientSearchQuery: StateFlow<String> = _patientSearchQuery.asStateFlow()
+
+    // Filter patients based on search query
+    val filteredPatients = combine(
+        getAllPatientsUseCase(),
+        _patientSearchQuery
+    ) { patients, query ->
+        if (query.isBlank()) {
+            patients
+        } else {
+            patients.filter {
+                it.firstName.contains(query, ignoreCase = true) ||
+                        it.lastName.contains(query, ignoreCase = true)
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    // Add this function to update search query
+    fun setPatientSearchQuery(query: String) {
+        _patientSearchQuery.value = query
+    }
 
     // The event ID from navigation arguments, or null if creating a new event
     private val eventId: Long? = savedStateHandle.get<Long>("eventId")?.takeIf { it != -1L }
@@ -126,14 +154,21 @@ class AddEditEventViewModel @Inject constructor(
     }
 
     // Form field update functions
-    fun setPatientId(id: Long) {
+    fun setPatientId(id: Long?) {
         _patientId.value = id
-        viewModelScope.launch {
-            try {
-                _selectedPatient.value = getPatientByIdUseCase(id)
-            } catch (e: Exception) {
-                _errorMessage.value = "Error loading patient: ${e.localizedMessage}"
+        if (id != null) {
+            viewModelScope.launch {
+                try {
+                    _selectedPatient.value = getPatientByIdUseCase(id)
+                    // Clear search query when patient is selected
+                    _patientSearchQuery.value = ""
+                } catch (e: Exception) {
+                    _errorMessage.value = "Error loading patient: ${e.localizedMessage}"
+                }
             }
+        } else {
+            // If id is null, clear the selected patient
+            _selectedPatient.value = null
         }
     }
 
@@ -150,13 +185,9 @@ class AddEditEventViewModel @Inject constructor(
     }
 
     fun setEventDate(date: LocalDate) {
-        val currentTime = _eventDateTime.value.toLocalTime()
+        // Always use the current time instead of keeping the previously selected time
+        val currentTime = LocalTime.now()
         _eventDateTime.value = LocalDateTime.of(date, currentTime)
-    }
-
-    fun setEventTime(time: LocalTime) {
-        val currentDate = _eventDateTime.value.toLocalDate()
-        _eventDateTime.value = LocalDateTime.of(currentDate, time)
     }
 
     fun setEventMinutes(minutes: Int) {
