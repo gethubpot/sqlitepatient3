@@ -1,6 +1,7 @@
 package com.example.sqlitepatient3.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -10,6 +11,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.sqlitepatient3.presentation.screens.database.BackupRestoreScreen
 import com.example.sqlitepatient3.presentation.screens.database.DatabaseInfoScreen
+import com.example.sqlitepatient3.presentation.screens.event.AddEditEventScreen
+import com.example.sqlitepatient3.presentation.screens.event.EventListScreen
 import com.example.sqlitepatient3.presentation.screens.home.HomeScreen
 import com.example.sqlitepatient3.presentation.screens.importexport.DataExportScreen
 import com.example.sqlitepatient3.presentation.screens.importexport.DataImportScreen
@@ -116,7 +119,51 @@ fun AppNavHost(
         // TODO: Add facility screen composables
 
         // Event Screens
-        // TODO: Add event screen composables
+        composable(
+            route = ScreenRoute.AddEditEvent.route,
+            arguments = listOf(
+                navArgument("eventId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                    nullable = false
+                },
+                navArgument("patientId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                    nullable = false
+                }
+            )
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getLong("eventId") ?: -1L
+            val patientId = backStackEntry.arguments?.getLong("patientId") ?: -1L
+            AddEditEventScreen(
+                eventId = if (eventId != -1L) eventId else null,
+                patientId = if (patientId != -1L) patientId else null,
+                onNavigateUp = { navController.navigateUp() },
+                onSaveComplete = { navController.navigateUp() }
+            )
+        }
+
+        composable(route = ScreenRoute.EventList.route) {
+            EventListScreen(
+                onNavigateUp = { navController.navigateUp() },
+                onEventClick = { eventId -> navController.navigate(ScreenRoute.EventDetail.createRoute(eventId)) },
+                onAddNewEvent = { navController.navigate(ScreenRoute.AddEditEvent.createRoute()) }
+            )
+        }
+
+        // Event Detail Route
+        composable(
+            route = ScreenRoute.EventDetail.route,
+            arguments = listOf(navArgument("eventId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getLong("eventId") ?: 0
+            // TODO: Implement EventDetailScreen
+            // For now, just navigate back
+            LaunchedEffect(Unit) {
+                navController.navigateUp()
+            }
+        }
 
         // Settings Screen
         // TODO: Add settings screen composable
