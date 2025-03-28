@@ -2,7 +2,7 @@
 # Core Android versions
 junit-ktx = "1.2.1"
 kotlin = "2.1.10"  # Changed to realistic version (2.1.10 is too far in the future)
-agp = "8.9.0"     # Changed to realistic version
+agp = "8.9.1"     # Changed to realistic version
 kotlin-test-junit = "1.9.22"
 kotlinx-coroutines-test = "1.8.1"
 kotlinx-metadata-jvm = "0.7.0"
