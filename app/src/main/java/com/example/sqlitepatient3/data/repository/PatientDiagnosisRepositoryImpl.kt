@@ -76,11 +76,11 @@ class PatientDiagnosisRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updatePatientDiagnosis(diagnosis: PatientDiagnosis) {
-        val entity = PatientDiagnosisEntity.fromDomainModel(diagnosis.copy(
-            // Update timestamp
-            updatedAt = System.currentTimeMillis()
-        ))
-        patientDiagnosisDao.updatePatientDiagnosis(entity)
+        // First convert the domain model to entity
+        val entity = PatientDiagnosisEntity.fromDomainModel(diagnosis)
+        // Then update the timestamp on the entity
+        val updatedEntity = entity.copy(updatedAt = System.currentTimeMillis())
+        patientDiagnosisDao.updatePatientDiagnosis(updatedEntity)
     }
 
     override suspend fun deletePatientDiagnosis(diagnosis: PatientDiagnosis) {

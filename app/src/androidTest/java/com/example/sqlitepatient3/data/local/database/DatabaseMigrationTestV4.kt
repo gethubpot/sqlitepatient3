@@ -354,15 +354,15 @@ class DatabaseMigrationTestV4 {
         }
 
         // Migrate from v1 to v2
-        val dbV2 = helper.runMigrationsAndValidate(TEST_DB, 2, true, MIGRATION_1_2)
+        val dbV2 = helper.runMigrationsAndValidate(TEST_DB, 2, true, DatabaseMigrations.MIGRATION_1_2)
         dbV2.close()
 
         // Migrate from v2 to v3
-        val dbV3 = helper.runMigrationsAndValidate(TEST_DB, 3, true, MIGRATION_2_3)
+        val dbV3 = helper.runMigrationsAndValidate(TEST_DB, 3, true, DatabaseMigrations.MIGRATION_2_3)
         dbV3.close()
 
         // Migrate from v3 to v4
-        val dbV4 = helper.runMigrationsAndValidate(TEST_DB, 4, true, MIGRATION_3_4)
+        val dbV4 = helper.runMigrationsAndValidate(TEST_DB, 4, true, DatabaseMigrations.MIGRATION_3_4)
 
         try {
             // Verify all tables exist

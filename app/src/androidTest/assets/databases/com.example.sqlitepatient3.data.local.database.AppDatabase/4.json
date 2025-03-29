@@ -1,0 +1,947 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "3ed3c7baead8e303b520cb8c74a17539",
+    "entities": [
+      {
+        "tableName": "patients",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `firstName` TEXT NOT NULL, `lastName` TEXT NOT NULL, `upi` TEXT NOT NULL, `dateOfBirth` INTEGER, `isMale` INTEGER NOT NULL, `medicareNumber` TEXT NOT NULL, `facilityId` INTEGER, `isHospice` INTEGER NOT NULL, `onCcm` INTEGER NOT NULL, `onPsych` INTEGER NOT NULL, `onPsyMed` INTEGER NOT NULL, `psyMedReviewDate` INTEGER, `hospiceDiagnosisId` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, FOREIGN KEY(`facilityId`) REFERENCES `facilities`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstName",
+            "columnName": "firstName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastName",
+            "columnName": "lastName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upi",
+            "columnName": "upi",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateOfBirth",
+            "columnName": "dateOfBirth",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isMale",
+            "columnName": "isMale",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "medicareNumber",
+            "columnName": "medicareNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "facilityId",
+            "columnName": "facilityId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isHospice",
+            "columnName": "isHospice",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "onCcm",
+            "columnName": "onCcm",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "onPsych",
+            "columnName": "onPsych",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "onPsyMed",
+            "columnName": "onPsyMed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "psyMedReviewDate",
+            "columnName": "psyMedReviewDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hospiceDiagnosisId",
+            "columnName": "hospiceDiagnosisId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_patients_upi",
+            "unique": true,
+            "columnNames": [
+              "upi"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_patients_upi` ON `${TABLE_NAME}` (`upi`)"
+          },
+          {
+            "name": "index_patients_facilityId",
+            "unique": false,
+            "columnNames": [
+              "facilityId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patients_facilityId` ON `${TABLE_NAME}` (`facilityId`)"
+          },
+          {
+            "name": "index_patients_lastName_firstName",
+            "unique": false,
+            "columnNames": [
+              "lastName",
+              "firstName"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patients_lastName_firstName` ON `${TABLE_NAME}` (`lastName`, `firstName`)"
+          },
+          {
+            "name": "index_patients_hospiceDiagnosisId",
+            "unique": false,
+            "columnNames": [
+              "hospiceDiagnosisId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patients_hospiceDiagnosisId` ON `${TABLE_NAME}` (`hospiceDiagnosisId`)"
+          },
+          {
+            "name": "index_patients_facilityId_isHospice",
+            "unique": false,
+            "columnNames": [
+              "facilityId",
+              "isHospice"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patients_facilityId_isHospice` ON `${TABLE_NAME}` (`facilityId`, `isHospice`)"
+          },
+          {
+            "name": "index_patients_facilityId_onCcm",
+            "unique": false,
+            "columnNames": [
+              "facilityId",
+              "onCcm"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patients_facilityId_onCcm` ON `${TABLE_NAME}` (`facilityId`, `onCcm`)"
+          },
+          {
+            "name": "index_patients_facilityId_onPsych",
+            "unique": false,
+            "columnNames": [
+              "facilityId",
+              "onPsych"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patients_facilityId_onPsych` ON `${TABLE_NAME}` (`facilityId`, `onPsych`)"
+          },
+          {
+            "name": "index_patients_isHospice_onCcm_onPsych",
+            "unique": false,
+            "columnNames": [
+              "isHospice",
+              "onCcm",
+              "onPsych"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patients_isHospice_onCcm_onPsych` ON `${TABLE_NAME}` (`isHospice`, `onCcm`, `onPsych`)"
+          },
+          {
+            "name": "index_patients_onPsyMed_psyMedReviewDate",
+            "unique": false,
+            "columnNames": [
+              "onPsyMed",
+              "psyMedReviewDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patients_onPsyMed_psyMedReviewDate` ON `${TABLE_NAME}` (`onPsyMed`, `psyMedReviewDate`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "facilities",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "facilityId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "facilities",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `entityType` TEXT, `lastName` TEXT, `firstName` TEXT, `middleName` TEXT, `suffix` TEXT, `address1` TEXT, `address2` TEXT, `city` TEXT, `state` TEXT, `zipCode` TEXT, `phoneNumber` TEXT, `faxNumber` TEXT, `email` TEXT, `npi` TEXT, `isActive` INTEGER NOT NULL, `facilityCode` TEXT, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityType",
+            "columnName": "entityType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastName",
+            "columnName": "lastName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "firstName",
+            "columnName": "firstName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "middleName",
+            "columnName": "middleName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "suffix",
+            "columnName": "suffix",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "address1",
+            "columnName": "address1",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "address2",
+            "columnName": "address2",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "city",
+            "columnName": "city",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "zipCode",
+            "columnName": "zipCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "phoneNumber",
+            "columnName": "phoneNumber",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "faxNumber",
+            "columnName": "faxNumber",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "email",
+            "columnName": "email",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "npi",
+            "columnName": "npi",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "facilityCode",
+            "columnName": "facilityCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_facilities_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_facilities_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_facilities_facilityCode",
+            "unique": true,
+            "columnNames": [
+              "facilityCode"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_facilities_facilityCode` ON `${TABLE_NAME}` (`facilityCode`)"
+          },
+          {
+            "name": "index_facilities_isActive",
+            "unique": false,
+            "columnNames": [
+              "isActive"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_facilities_isActive` ON `${TABLE_NAME}` (`isActive`)"
+          },
+          {
+            "name": "index_facilities_lastName_firstName",
+            "unique": false,
+            "columnNames": [
+              "lastName",
+              "firstName"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_facilities_lastName_firstName` ON `${TABLE_NAME}` (`lastName`, `firstName`)"
+          },
+          {
+            "name": "index_facilities_city_state",
+            "unique": false,
+            "columnNames": [
+              "city",
+              "state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_facilities_city_state` ON `${TABLE_NAME}` (`city`, `state`)"
+          },
+          {
+            "name": "index_facilities_npi",
+            "unique": false,
+            "columnNames": [
+              "npi"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_facilities_npi` ON `${TABLE_NAME}` (`npi`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `patientId` INTEGER NOT NULL, `eventDateTime` INTEGER NOT NULL, `eventBillDate` INTEGER NOT NULL, `eventMinutes` INTEGER NOT NULL, `noteText` TEXT, `cptCode` TEXT, `modifier` TEXT, `eventFile` TEXT, `eventType` TEXT NOT NULL, `visitType` TEXT NOT NULL, `visitLocation` TEXT NOT NULL, `status` TEXT NOT NULL, `hospDischargeDate` INTEGER, `ttddDate` INTEGER, `monthlyBillingId` INTEGER, `followUpRecurrence` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, FOREIGN KEY(`patientId`) REFERENCES `patients`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "patientId",
+            "columnName": "patientId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventDateTime",
+            "columnName": "eventDateTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventBillDate",
+            "columnName": "eventBillDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventMinutes",
+            "columnName": "eventMinutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "noteText",
+            "columnName": "noteText",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cptCode",
+            "columnName": "cptCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "modifier",
+            "columnName": "modifier",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "eventFile",
+            "columnName": "eventFile",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "eventType",
+            "columnName": "eventType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visitType",
+            "columnName": "visitType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visitLocation",
+            "columnName": "visitLocation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hospDischargeDate",
+            "columnName": "hospDischargeDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "ttddDate",
+            "columnName": "ttddDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "monthlyBillingId",
+            "columnName": "monthlyBillingId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "followUpRecurrence",
+            "columnName": "followUpRecurrence",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_events_patientId",
+            "unique": false,
+            "columnNames": [
+              "patientId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_patientId` ON `${TABLE_NAME}` (`patientId`)"
+          },
+          {
+            "name": "index_events_eventDateTime",
+            "unique": false,
+            "columnNames": [
+              "eventDateTime"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_eventDateTime` ON `${TABLE_NAME}` (`eventDateTime`)"
+          },
+          {
+            "name": "index_events_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_events_eventType",
+            "unique": false,
+            "columnNames": [
+              "eventType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_eventType` ON `${TABLE_NAME}` (`eventType`)"
+          },
+          {
+            "name": "index_events_patientId_status",
+            "unique": false,
+            "columnNames": [
+              "patientId",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_patientId_status` ON `${TABLE_NAME}` (`patientId`, `status`)"
+          },
+          {
+            "name": "index_events_patientId_eventType",
+            "unique": false,
+            "columnNames": [
+              "patientId",
+              "eventType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_patientId_eventType` ON `${TABLE_NAME}` (`patientId`, `eventType`)"
+          },
+          {
+            "name": "index_events_eventType_status",
+            "unique": false,
+            "columnNames": [
+              "eventType",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_eventType_status` ON `${TABLE_NAME}` (`eventType`, `status`)"
+          },
+          {
+            "name": "index_events_eventDateTime_status",
+            "unique": false,
+            "columnNames": [
+              "eventDateTime",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_eventDateTime_status` ON `${TABLE_NAME}` (`eventDateTime`, `status`)"
+          },
+          {
+            "name": "index_events_eventBillDate_status",
+            "unique": false,
+            "columnNames": [
+              "eventBillDate",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_eventBillDate_status` ON `${TABLE_NAME}` (`eventBillDate`, `status`)"
+          },
+          {
+            "name": "index_events_patientId_eventDateTime",
+            "unique": false,
+            "columnNames": [
+              "patientId",
+              "eventDateTime"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_patientId_eventDateTime` ON `${TABLE_NAME}` (`patientId`, `eventDateTime`)"
+          },
+          {
+            "name": "index_events_monthlyBillingId",
+            "unique": false,
+            "columnNames": [
+              "monthlyBillingId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_monthlyBillingId` ON `${TABLE_NAME}` (`monthlyBillingId`)"
+          },
+          {
+            "name": "index_events_followUpRecurrence_eventDateTime",
+            "unique": false,
+            "columnNames": [
+              "followUpRecurrence",
+              "eventDateTime"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_followUpRecurrence_eventDateTime` ON `${TABLE_NAME}` (`followUpRecurrence`, `eventDateTime`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "patients",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "patientId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "system_properties",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `value` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "diagnostic_codes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `icdCode` TEXT NOT NULL, `description` TEXT NOT NULL, `shorthand` TEXT, `billable` INTEGER NOT NULL, `commonCode` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "icdCode",
+            "columnName": "icdCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "shorthand",
+            "columnName": "shorthand",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "billable",
+            "columnName": "billable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "commonCode",
+            "columnName": "commonCode",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_diagnostic_codes_icdCode",
+            "unique": true,
+            "columnNames": [
+              "icdCode"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_diagnostic_codes_icdCode` ON `${TABLE_NAME}` (`icdCode`)"
+          },
+          {
+            "name": "index_diagnostic_codes_shorthand",
+            "unique": false,
+            "columnNames": [
+              "shorthand"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_diagnostic_codes_shorthand` ON `${TABLE_NAME}` (`shorthand`)"
+          },
+          {
+            "name": "index_diagnostic_codes_billable",
+            "unique": false,
+            "columnNames": [
+              "billable"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_diagnostic_codes_billable` ON `${TABLE_NAME}` (`billable`)"
+          },
+          {
+            "name": "index_diagnostic_codes_commonCode",
+            "unique": false,
+            "columnNames": [
+              "commonCode"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_diagnostic_codes_commonCode` ON `${TABLE_NAME}` (`commonCode`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "patient_diagnoses",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `patientId` INTEGER NOT NULL, `icdCode` TEXT NOT NULL, `priority` INTEGER NOT NULL, `isHospiceCode` INTEGER NOT NULL, `diagnosisDate` INTEGER, `resolvedDate` INTEGER, `notes` TEXT, `active` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, FOREIGN KEY(`patientId`) REFERENCES `patients`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "patientId",
+            "columnName": "patientId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "icdCode",
+            "columnName": "icdCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priority",
+            "columnName": "priority",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isHospiceCode",
+            "columnName": "isHospiceCode",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "diagnosisDate",
+            "columnName": "diagnosisDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "resolvedDate",
+            "columnName": "resolvedDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "active",
+            "columnName": "active",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_patient_diagnoses_patientId",
+            "unique": false,
+            "columnNames": [
+              "patientId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patient_diagnoses_patientId` ON `${TABLE_NAME}` (`patientId`)"
+          },
+          {
+            "name": "index_patient_diagnoses_icdCode",
+            "unique": false,
+            "columnNames": [
+              "icdCode"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patient_diagnoses_icdCode` ON `${TABLE_NAME}` (`icdCode`)"
+          },
+          {
+            "name": "index_patient_diagnoses_priority",
+            "unique": false,
+            "columnNames": [
+              "priority"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patient_diagnoses_priority` ON `${TABLE_NAME}` (`priority`)"
+          },
+          {
+            "name": "index_patient_diagnoses_isHospiceCode",
+            "unique": false,
+            "columnNames": [
+              "isHospiceCode"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patient_diagnoses_isHospiceCode` ON `${TABLE_NAME}` (`isHospiceCode`)"
+          },
+          {
+            "name": "index_patient_diagnoses_active",
+            "unique": false,
+            "columnNames": [
+              "active"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patient_diagnoses_active` ON `${TABLE_NAME}` (`active`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "patients",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "patientId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3ed3c7baead8e303b520cb8c74a17539')"
+    ]
+  }
+}
