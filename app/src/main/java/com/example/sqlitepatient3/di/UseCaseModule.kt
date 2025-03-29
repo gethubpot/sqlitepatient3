@@ -1,8 +1,11 @@
 package com.example.sqlitepatient3.di
 
+import com.example.sqlitepatient3.domain.repository.DiagnosticCodeRepository
 import com.example.sqlitepatient3.domain.repository.EventRepository
 import com.example.sqlitepatient3.domain.repository.FacilityRepository
+import com.example.sqlitepatient3.domain.repository.PatientDiagnosisRepository
 import com.example.sqlitepatient3.domain.repository.PatientRepository
+import com.example.sqlitepatient3.domain.usecase.diagnosis.*
 import com.example.sqlitepatient3.domain.usecase.event.*
 import com.example.sqlitepatient3.domain.usecase.facility.*
 import com.example.sqlitepatient3.domain.usecase.patient.*
@@ -197,5 +200,103 @@ object UseCaseModule {
     @Singleton
     fun provideGetEventStatisticsUseCase(repository: EventRepository): GetEventStatisticsUseCase {
         return GetEventStatisticsUseCase(repository)
+    }
+
+    // DiagnosticCode Use Cases
+    @Provides
+    @Singleton
+    fun provideGetAllDiagnosticCodesUseCase(repository: DiagnosticCodeRepository): GetAllDiagnosticCodesUseCase {
+        return GetAllDiagnosticCodesUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetBillableDiagnosticCodesUseCase(repository: DiagnosticCodeRepository): GetBillableDiagnosticCodesUseCase {
+        return GetBillableDiagnosticCodesUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetCommonDiagnosticCodesUseCase(repository: DiagnosticCodeRepository): GetCommonDiagnosticCodesUseCase {
+        return GetCommonDiagnosticCodesUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSearchDiagnosticCodesUseCase(repository: DiagnosticCodeRepository): SearchDiagnosticCodesUseCase {
+        return SearchDiagnosticCodesUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetDiagnosticCodeByIdUseCase(repository: DiagnosticCodeRepository): GetDiagnosticCodeByIdUseCase {
+        return GetDiagnosticCodeByIdUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAddDiagnosticCodeUseCase(repository: DiagnosticCodeRepository): AddDiagnosticCodeUseCase {
+        return AddDiagnosticCodeUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUpdateDiagnosticCodeUseCase(repository: DiagnosticCodeRepository): UpdateDiagnosticCodeUseCase {
+        return UpdateDiagnosticCodeUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUpdateCommonCodeStatusUseCase(repository: DiagnosticCodeRepository): UpdateCommonCodeStatusUseCase {
+        return UpdateCommonCodeStatusUseCase(repository)
+    }
+
+    // PatientDiagnosis Use Cases
+    @Provides
+    @Singleton
+    fun provideGetPatientDiagnosesUseCase(repository: PatientDiagnosisRepository): GetPatientDiagnosesUseCase {
+        return GetPatientDiagnosesUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetActivePatientDiagnosesUseCase(repository: PatientDiagnosisRepository): GetActivePatientDiagnosesUseCase {
+        return GetActivePatientDiagnosesUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetHospiceDiagnosesUseCase(repository: PatientDiagnosisRepository): GetHospiceDiagnosesUseCase {
+        return GetHospiceDiagnosesUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAddPatientDiagnosisUseCase(repository: PatientDiagnosisRepository): AddPatientDiagnosisUseCase {
+        return AddPatientDiagnosisUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUpdatePatientDiagnosisUseCase(repository: PatientDiagnosisRepository): UpdatePatientDiagnosisUseCase {
+        return UpdatePatientDiagnosisUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSetDiagnosisActiveUseCase(repository: PatientDiagnosisRepository): SetDiagnosisActiveUseCase {
+        return SetDiagnosisActiveUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSetHospiceStatusUseCase(repository: PatientDiagnosisRepository): SetHospiceStatusUseCase {
+        return SetHospiceStatusUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideResolveDiagnosisUseCase(repository: PatientDiagnosisRepository): ResolveDiagnosisUseCase {
+        return ResolveDiagnosisUseCase(repository)
     }
 }

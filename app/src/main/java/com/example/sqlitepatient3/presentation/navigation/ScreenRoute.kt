@@ -48,4 +48,32 @@ sealed class ScreenRoute(val route: String) {
     object Settings : ScreenRoute("settings")
     object DatabaseInfo : ScreenRoute("database_info")
     object BackupRestore : ScreenRoute("backup_restore")
+
+    // New routes for diagnoses
+    object PatientDiagnosisList : ScreenRoute("patient_diagnoses/{patientId}") {
+        fun createRoute(patientId: Long) = "patient_diagnoses/$patientId"
+    }
+    object AddEditPatientDiagnosis : ScreenRoute("add_edit_diagnosis?diagnosisId={diagnosisId}&patientId={patientId}") {
+        fun createRoute(diagnosisId: Long? = null, patientId: Long? = null): String {
+            return buildString {
+                append("add_edit_diagnosis")
+                if (diagnosisId != null || patientId != null) {
+                    append("?")
+                    if (diagnosisId != null) {
+                        append("diagnosisId=$diagnosisId")
+                        if (patientId != null) {
+                            append("&")
+                        }
+                    }
+                    if (patientId != null) {
+                        append("patientId=$patientId")
+                    }
+                }
+            }
+        }
+    }
+    object DiagnosticCodeList : ScreenRoute("diagnostic_codes")
+    object AddEditDiagnosticCode : ScreenRoute("add_edit_diagnostic_code?codeId={codeId}") {
+        fun createRoute(codeId: Long? = null) = codeId?.let { "add_edit_diagnostic_code?codeId=$it" } ?: "add_edit_diagnostic_code"
+    }
 }

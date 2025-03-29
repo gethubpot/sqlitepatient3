@@ -20,6 +20,7 @@ data class Patient(
     val onPsych: Boolean = false,
     val onPsyMed: Boolean = false,
     val psyMedReviewDate: LocalDate? = null,
+    val hospiceDiagnosisId: Long? = null,  // New field for primary hospice diagnosis
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {

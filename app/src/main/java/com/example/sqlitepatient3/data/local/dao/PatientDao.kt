@@ -2,6 +2,7 @@ package com.example.sqlitepatient3.data.local.dao
 
 import androidx.room.*
 import com.example.sqlitepatient3.data.local.entity.PatientEntity
+import com.example.sqlitepatient3.data.local.relation.PatientWithDiagnoses
 import com.example.sqlitepatient3.data.local.relation.PatientWithEvents
 import kotlinx.coroutines.flow.Flow
 
@@ -82,8 +83,21 @@ interface PatientDao {
         timestamp: Long = System.currentTimeMillis()
     )
 
-    // Add the missing method
+    // Add the missing method for events
     @Transaction
     @Query("SELECT * FROM patients WHERE id = :patientId")
     fun getPatientWithEvents(patientId: Long): Flow<PatientWithEvents?>
+
+    // New methods for diagnoses
+    @Transaction
+    @Query("SELECT * FROM patients WHERE id = :patientId")
+    fun getPatientWithDiagnoses(patientId: Long): Flow<PatientWithDiagnoses?>
+
+    @Transaction
+    @Query("UPDATE patients SET hospiceDiagnosisId = :diagnosisId, updatedAt = :timestamp WHERE id = :patientId")
+    suspend fun updateHospiceDiagnosis(
+        patientId: Long,
+        diagnosisId: Long?,
+        timestamp: Long = System.currentTimeMillis()
+    )
 }

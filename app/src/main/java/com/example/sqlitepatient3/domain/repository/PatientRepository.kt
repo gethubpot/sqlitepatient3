@@ -1,6 +1,7 @@
 package com.example.sqlitepatient3.domain.repository
 
 import com.example.sqlitepatient3.domain.model.Patient
+import com.example.sqlitepatient3.domain.model.PatientDiagnosis
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
@@ -42,4 +43,8 @@ interface PatientRepository {
 
     // Relations
     fun getPatientWithEvents(patientId: Long): Flow<Pair<Patient, List<com.example.sqlitepatient3.domain.model.Event>>?>
+
+    // New methods for diagnoses
+    fun getPatientWithDiagnoses(patientId: Long): Flow<Pair<Patient, List<PatientDiagnosis>>?>
+    suspend fun updatePatientHospiceDiagnosis(patientId: Long, diagnosisId: Long?): Boolean
 }

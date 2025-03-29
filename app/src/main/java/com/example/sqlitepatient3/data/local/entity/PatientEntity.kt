@@ -27,7 +27,7 @@ import java.time.ZoneId
         Index(value = ["upi"], unique = true),
         Index(value = ["facilityId"]),
         Index(value = ["lastName", "firstName"]),
-        // Composite indices for common query patterns
+        Index(value = ["hospiceDiagnosisId"]),  // New index for hospice diagnosis
         Index(value = ["facilityId", "isHospice"]),
         Index(value = ["facilityId", "onCcm"]),
         Index(value = ["facilityId", "onPsych"]),
@@ -50,6 +50,7 @@ data class PatientEntity(
     val onPsych: Boolean = false,
     val onPsyMed: Boolean = false,
     val psyMedReviewDate: Long? = null,  // Stored as epoch millis
+    val hospiceDiagnosisId: Long? = null,  // New field for primary hospice diagnosis
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {
@@ -75,6 +76,7 @@ data class PatientEntity(
             psyMedReviewDate = psyMedReviewDate?.let {
                 Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
             },
+            hospiceDiagnosisId = hospiceDiagnosisId,  // Include this field in conversion
             createdAt = createdAt,
             updatedAt = updatedAt
         )
@@ -99,6 +101,7 @@ data class PatientEntity(
                 onPsych = patient.onPsych,
                 onPsyMed = patient.onPsyMed,
                 psyMedReviewDate = patient.psyMedReviewDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli(),
+                hospiceDiagnosisId = patient.hospiceDiagnosisId,  // Include this field in conversion
                 createdAt = patient.createdAt,
                 updatedAt = patient.updatedAt
             )

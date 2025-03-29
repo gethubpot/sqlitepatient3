@@ -1,9 +1,11 @@
 package com.example.sqlitepatient3.data.repository
 
 import com.example.sqlitepatient3.data.local.dao.PatientDao
+import com.example.sqlitepatient3.data.local.dao.PatientDiagnosisDao
 import com.example.sqlitepatient3.data.local.entity.PatientEntity
 import com.example.sqlitepatient3.domain.model.Event
 import com.example.sqlitepatient3.domain.model.Patient
+import com.example.sqlitepatient3.domain.model.PatientDiagnosis
 import com.example.sqlitepatient3.domain.repository.PatientRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -15,7 +17,8 @@ import javax.inject.Singleton
 
 @Singleton
 class PatientRepositoryImpl @Inject constructor(
-    private val patientDao: PatientDao
+    private val patientDao: PatientDao,
+    private val patientDiagnosisDao: PatientDiagnosisDao
 ) : PatientRepository {
 
     override fun getAllPatients(): Flow<List<Patient>> {
@@ -126,5 +129,19 @@ class PatientRepositoryImpl @Inject constructor(
 
     override fun getPatientWithEvents(patientId: Long): Flow<Pair<Patient, List<Event>>?> {
         return patientDao.getPatientWithEvents(patientId).mapNotNull { it?.toDomainModel() }
+    }
+
+    // New methods for diagnoses
+    override fun getPatientWithDiagnoses(patientId: Long): Flow<Pair<Patient, List<PatientDiagnosis>>?> {
+        return patientDao.getPatientWithDiagnoses(patientId).mapNotNull { it?.toDomainModel() }
+    }
+
+    override suspend fun updatePatientHospiceDiagnosis(patientId: Long, diagnosisId: Long?): Boolean {
+        return try {
+            patientDao.updateHospiceDiagnosis(patientId, diagnosisId)
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 }

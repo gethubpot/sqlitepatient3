@@ -7,16 +7,20 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.sqlitepatient3.data.local.dao.DiagnosticCodeDao
 import com.example.sqlitepatient3.data.local.dao.EventDao
 import com.example.sqlitepatient3.data.local.dao.FacilityDao
 import com.example.sqlitepatient3.data.local.dao.PatientDao
+import com.example.sqlitepatient3.data.local.dao.PatientDiagnosisDao
 import com.example.sqlitepatient3.data.local.dao.SystemPropertiesDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import com.example.sqlitepatient3.data.local.entity.PatientEntity
-import com.example.sqlitepatient3.data.local.entity.FacilityEntity
+import com.example.sqlitepatient3.data.local.entity.DiagnosticCodeEntity
 import com.example.sqlitepatient3.data.local.entity.EventEntity
+import com.example.sqlitepatient3.data.local.entity.FacilityEntity
+import com.example.sqlitepatient3.data.local.entity.PatientDiagnosisEntity
+import com.example.sqlitepatient3.data.local.entity.PatientEntity
 import com.example.sqlitepatient3.data.local.entity.SystemPropertyEntity
 
 /**
@@ -27,9 +31,11 @@ import com.example.sqlitepatient3.data.local.entity.SystemPropertyEntity
         PatientEntity::class,
         FacilityEntity::class,
         EventEntity::class,
-        SystemPropertyEntity::class
+        SystemPropertyEntity::class,
+        DiagnosticCodeEntity::class,
+        PatientDiagnosisEntity::class
     ],
-    version = 3,  // Updated to version 3 to match latest migration
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -39,21 +45,31 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun facilityDao(): FacilityDao
     abstract fun eventDao(): EventDao
     abstract fun systemPropertiesDao(): SystemPropertiesDao
+    abstract fun diagnosticCodeDao(): DiagnosticCodeDao
+    abstract fun patientDiagnosisDao(): PatientDiagnosisDao
 
     companion object {
         private const val TAG = "AppDatabase"
         private const val DATABASE_NAME = "sqlitepatient3.db"
-
-        // Include all migrations from the DatabaseMigrations object
-        private val MIGRATIONS = arrayOf(
-            *DatabaseMigrations.ALL_MIGRATIONS
-        )
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+                // Get migrations using MigrationManager
+                val migrationManager = MigrationManager(context.applicationContext)
+                val migrations = migrationManager.getMigrationsToRun()
+
+                // Log the migrations that will be applied
+                if (migrations.isNotEmpty()) {
+                    Log.i(TAG, "Applying migrations: ${migrations.joinToString(", ") {
+                        "v${it.startVersion} to v${it.endVersion}"
+                    }}")
+                } else {
+                    Log.i(TAG, "No migrations to apply")
+                }
+
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
@@ -99,22 +115,16 @@ abstract class AppDatabase : RoomDatabase() {
                             // Run regular maintenance
                             CoroutineScope(Dispatchers.IO).launch {
                                 // Perform integrity check
-                                val integrityResult = db.query("PRAGMA integrity_check")
-                                integrityResult.use { cursor ->
-                                    if (cursor.moveToFirst()) {
-                                        val result = cursor.getString(0)
-                                        if (result != "ok") {
-                                            Log.e(TAG, "Database integrity check failed: $result")
-                                            // Consider triggering auto-restore from backup here
-                                        }
-                                    }
+                                if (!migrationManager.verifyDatabaseIntegrity(db)) {
+                                    Log.e(TAG, "Database integrity check failed on open")
+                                    // Consider triggering auto-restore from backup here
                                 }
                             }
                         }
                     })
-                    // Add all migrations for proper version management
-                    .addMigrations(*MIGRATIONS)
-                    // For development, you can enable fallback but it's risky for production
+                    // Add the migrations determined by the manager
+                    .addMigrations(*migrations)
+                    // Fallback is commented out for safety, but could be uncommented if needed
                     // .fallbackToDestructiveMigration()
                     .build()
 
@@ -123,101 +133,48 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // Method to close database instance when application is shutting down
+        /**
+         * Closes the current database instance if it exists and sets the INSTANCE to null.
+         * This method should be called when you need to ensure no database connections remain open,
+         * such as before performing a backup or restore operation.
+         */
         fun closeInstance() {
-            INSTANCE?.let {
-                try {
-                    if (it.isOpen) {
-                        it.close()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error closing database", e)
+            synchronized(this) {
+                INSTANCE?.let { db ->
+                    db.close()
+                    Log.i(TAG, "Database instance closed")
                 }
                 INSTANCE = null
             }
         }
 
-        // Method to run maintenance routines on the database
-        fun performMaintenance(context: Context) {
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val db = getInstance(context).openHelper.writableDatabase
-
-                    // Check integrity first
-                    val isIntact = DatabaseUtils.verifyDatabaseIntegrity(db)
-
-                    if (isIntact) {
-                        // Only optimize if integrity check passes
-                        DatabaseUtils.optimizeDatabase(db)
-
-                        // Update maintenance timestamp
-                        db.execSQL(
-                            """
-                            INSERT OR REPLACE INTO system_properties (key, value, updatedAt) 
-                            VALUES ('last_maintenance', ?, ?)
-                            """.trimIndent(),
-                            arrayOf(
-                                System.currentTimeMillis().toString(),
-                                System.currentTimeMillis().toString()
-                            )
-                        )
-
-                        Log.i(TAG, "Database maintenance completed successfully")
-                    } else {
-                        Log.e(TAG, "Database integrity check failed")
-                        // Could trigger backup restoration or other recovery mechanisms
-
-                        // Report database corruption
-                        db.execSQL(
-                            """
-                            INSERT OR REPLACE INTO system_properties (key, value, updatedAt) 
-                            VALUES ('db_corruption_detected', ?, ?)
-                            """.trimIndent(),
-                            arrayOf(
-                                System.currentTimeMillis().toString(),
-                                System.currentTimeMillis().toString()
-                            )
-                        )
-
-                        // Attempt auto-recovery by rebuilding indexes
-                        try {
-                            Log.i(TAG, "Attempting database recovery...")
-                            db.execSQL("REINDEX")
-
-                            // Check if recovery was successful
-                            val recoverySuccessful = DatabaseUtils.verifyDatabaseIntegrity(db)
-                            if (recoverySuccessful) {
-                                Log.i(TAG, "Database recovery successful")
-                                db.execSQL(
-                                    """
-                                    INSERT OR REPLACE INTO system_properties (key, value, updatedAt) 
-                                    VALUES ('db_recovery_success', ?, ?)
-                                    """.trimIndent(),
-                                    arrayOf(
-                                        System.currentTimeMillis().toString(),
-                                        System.currentTimeMillis().toString()
-                                    )
-                                )
-                            } else {
-                                Log.e(TAG, "Database recovery failed")
-                                // Consider triggering automatic restoration from backup
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error during database recovery attempt", e)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error during database maintenance", e)
-                }
-            }
-        }
-
         /**
-         * Captures the current database schema as a SchemaDiffUtil.DatabaseSchema object
+         * Performs database maintenance tasks including VACUUM and ANALYZE.
+         * This helps keep the database optimized and reduces file size.
          */
-        fun captureCurrentSchema(context: Context): SchemaDiffUtil.DatabaseSchema {
-            val db = getInstance(context).openHelper.readableDatabase
-            return SchemaDiffUtil.Companion.extractSchemaFromDatabase(db)
+        fun performMaintenance(context: Context) {
+            val db = getInstance(context).openHelper.writableDatabase
+            try {
+                Log.i(TAG, "Starting database maintenance")
+                // Vacuum to reclaim space and defragment
+                db.execSQL("VACUUM")
+                // Analyze to update statistics for query optimization
+                db.execSQL("ANALYZE")
+                // Record maintenance time
+                db.execSQL(
+                    """
+                    INSERT OR REPLACE INTO system_properties (key, value, updatedAt) 
+                    VALUES ('last_maintenance', ?, ?)
+                    """.trimIndent(),
+                    arrayOf(
+                        System.currentTimeMillis().toString(),
+                        System.currentTimeMillis().toString()
+                    )
+                )
+                Log.i(TAG, "Database maintenance completed successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during database maintenance", e)
+            }
         }
     }
 }
