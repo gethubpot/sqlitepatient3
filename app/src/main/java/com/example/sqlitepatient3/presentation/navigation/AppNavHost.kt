@@ -19,7 +19,7 @@ import com.example.sqlitepatient3.presentation.screens.importexport.DataImportSc
 import com.example.sqlitepatient3.presentation.screens.importexport.ImportExportScreen
 import com.example.sqlitepatient3.presentation.screens.patient.AddEditPatientScreen
 import com.example.sqlitepatient3.presentation.screens.patient.PatientListScreen
-
+import com.example.sqlitepatient3.presentation.screens.patient.PatientDetailScreen
 @Composable
 fun AppNavHost(
     modifier: Modifier = Modifier,
@@ -58,7 +58,13 @@ fun AppNavHost(
             arguments = listOf(navArgument("patientId") { type = NavType.LongType })
         ) { backStackEntry ->
             val patientId = backStackEntry.arguments?.getLong("patientId") ?: 0
-            // PatientDetailScreen implementation
+            PatientDetailScreen(
+                onNavigateUp = { navController.navigateUp() },
+                onEditPatient = { patientId -> navController.navigate(ScreenRoute.AddEditPatient.createRoute(patientId)) },
+                onAddEvent = { patientId -> navController.navigate(ScreenRoute.AddEditEvent.createRoute(patientId = patientId)) },
+                onViewAllEvents = { /* TODO: Implement patient events screen */ },
+                onViewDiagnoses = { /* TODO: Implement diagnoses screen */ }
+            )
         }
 
         composable(
