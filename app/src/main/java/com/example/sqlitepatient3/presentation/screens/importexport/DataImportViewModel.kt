@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class ImportType {
+    PATIENTS, FACILITIES, DIAGNOSES
+}
+
 @HiltViewModel
 class DataImportViewModel @Inject constructor(
     private val csvImporter: CsvImporter
@@ -68,6 +72,7 @@ class DataImportViewModel @Inject constructor(
                 val result = when (_importType.value) {
                     ImportType.PATIENTS -> importPatients(context)
                     ImportType.FACILITIES -> importFacilities(context)
+                    ImportType.DIAGNOSES -> importDiagnoses(context)
                 }
 
                 _importResult.value = result
@@ -97,6 +102,27 @@ class DataImportViewModel @Inject constructor(
         return try {
             val (successCount, errorCount) = csvImporter.importFacilities(context, uri)
             "Import complete: $successCount facilities imported, $errorCount errors"
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
+    }
+
+    private suspend fun importDiagnoses(context: Context): String {
+        val uri = selectedFileUri ?: return "No file selected"
+
+        return try {
+            val (diagnosisSuccessCount, diagnosisErrorCount, unmatchedPatientCount) =
+                csvImporter.importDiagnoses(context, uri)
+
+            val resultBuilder = StringBuilder("Import complete: ")
+            resultBuilder.append("$diagnosisSuccessCount diagnoses imported, ")
+            resultBuilder.append("$diagnosisErrorCount errors")
+
+            if (unmatchedPatientCount > 0) {
+                resultBuilder.append(", $unmatchedPatientCount diagnoses skipped due to unmatched patients")
+            }
+
+            resultBuilder.toString()
         } catch (e: Exception) {
             "Error: ${e.message}"
         }

@@ -3,11 +3,15 @@ package com.example.sqlitepatient3.data.importexport
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.example.sqlitepatient3.domain.model.DiagnosticCode
 import com.example.sqlitepatient3.domain.model.Facility
+import com.example.sqlitepatient3.domain.model.Patient
+import com.example.sqlitepatient3.domain.repository.DiagnosticCodeRepository
 import com.example.sqlitepatient3.domain.repository.FacilityRepository
+import com.example.sqlitepatient3.domain.repository.PatientDiagnosisRepository
 import com.example.sqlitepatient3.domain.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.IOException
@@ -25,7 +29,9 @@ import kotlin.text.iterator
 @Singleton
 class CsvImporter @Inject constructor(
     private val patientRepository: PatientRepository,
-    private val facilityRepository: FacilityRepository
+    private val facilityRepository: FacilityRepository,
+    private val diagnosticCodeRepository: DiagnosticCodeRepository,
+    private val patientDiagnosisRepository: PatientDiagnosisRepository
 ) {
     private val TAG = "CsvImporter"
     private val dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
@@ -60,7 +66,7 @@ class CsvImporter @Inject constructor(
 
                 // Get facility code to ID mapping
                 val facilityCodeMap = mutableMapOf<String, Long>()
-                facilityRepository.getAllFacilities().first().forEach { facility ->
+                facilityRepository.getAllFacilities().firstOrNull()?.forEach { facility ->
                     facility.facilityCode?.let { code ->
                         facilityCodeMap[code] = facility.id
                     }
@@ -233,6 +239,140 @@ class CsvImporter @Inject constructor(
             }
 
             return@withContext Pair(successCount, errorCount)
+        }
+
+    /**
+     * Imports diagnosis data from a CSV file
+     * Returns a triple of (diagnosisSuccessCount, diagnosisErrorCount, unmatchedPatientCount)
+     */
+    suspend fun importDiagnoses(context: Context, fileUri: Uri): Triple<Int, Int, Int> =
+        withContext(Dispatchers.IO) {
+            var diagnosisSuccessCount = 0
+            var diagnosisErrorCount = 0
+            var unmatchedPatientCount = 0
+
+            try {
+                // Read CSV content
+                val csvContent = readCsvContent(context, fileUri)
+                val lines = csvContent.lines().filter { it.isNotBlank() }
+
+                if (lines.isEmpty()) {
+                    return@withContext Triple(0, 0, 0)
+                }
+
+                // Parse header
+                val header = parseCsvLine(lines[0])
+                val headerMap =
+                    header.mapIndexed { index, columnName -> columnName.trim() to index }.toMap()
+
+                // Check required columns
+                if (!headerMap.containsKey("patientUPI") || !headerMap.containsKey("icdCode") || !headerMap.containsKey("description")) {
+                    throw IOException("CSV must contain patientUPI, icdCode, and description columns")
+                }
+
+                // Create a cache of patients by UPI for faster lookup
+                val patientsCache = mutableMapOf<String, Long>()
+                patientRepository.getAllPatients().firstOrNull()?.forEach { patient ->
+                    patientsCache[patient.upi] = patient.id
+                }
+
+                // Create a cache of existing diagnostic codes to avoid duplicates
+                val existingCodesCache = mutableMapOf<String, Long>()
+                diagnosticCodeRepository.getAllDiagnosticCodes().firstOrNull()?.forEach { code ->
+                    existingCodesCache[code.icdCode] = code.id
+                }
+
+                // Process each data row
+                for (i in 1 until lines.size) {
+                    try {
+                        val values = parseCsvLine(lines[i])
+                        if (values.size < 3) continue // Skip empty lines
+
+                        val patientUPI = getColumnValue(values, headerMap, "patientUPI")
+                        val icdCode = getColumnValue(values, headerMap, "icdCode")
+                        val description = getColumnValue(values, headerMap, "description")
+
+                        // Skip if any required field is blank
+                        if (patientUPI.isBlank() || icdCode.isBlank() || description.isBlank()) {
+                            diagnosisErrorCount++
+                            continue
+                        }
+
+                        // Find patient ID by UPI
+                        val patientId = patientsCache[patientUPI]
+                        if (patientId == null) {
+                            unmatchedPatientCount++
+                            continue
+                        }
+
+                        // Optional fields
+                        val priorityStr = getColumnValue(values, headerMap, "priority")
+                        val priority = priorityStr.toIntOrNull() ?: 1
+
+                        val isHospiceCode = getColumnValue(values, headerMap, "isHospiceCode").equals(
+                            "true",
+                            ignoreCase = true
+                        )
+
+                        val active = getColumnValue(values, headerMap, "active").equals(
+                            "true",
+                            ignoreCase = true
+                        )
+
+                        // Look up or create the diagnostic code
+                        val diagnosticCodeId = if (existingCodesCache.containsKey(icdCode)) {
+                            existingCodesCache[icdCode]!!
+                        } else {
+                            // Create a new diagnostic code
+                            val newCodeId = diagnosticCodeRepository.insertDiagnosticCode(
+                                DiagnosticCode(
+                                    icdCode = icdCode,
+                                    description = description,
+                                    shorthand = null,
+                                    billable = true,
+                                    commonCode = true
+                                )
+                            )
+                            // Add to cache
+                            existingCodesCache[icdCode] = newCodeId
+                            newCodeId
+                        }
+
+                        // Insert the patient diagnosis
+                        patientDiagnosisRepository.insertPatientDiagnosis(
+                            patientId = patientId,
+                            icdCode = icdCode,
+                            priority = priority,
+                            isHospiceCode = isHospiceCode,
+                            diagnosisDate = LocalDate.now(), // Current date as diagnosis date
+                            notes = null
+                        )
+
+                        // If this is a hospice diagnosis and marked as a hospice code, update patient
+                        if (isHospiceCode) {
+                            val patient = patientRepository.getPatientById(patientId)
+                            if (patient != null && (patient.hospiceDiagnosisId == null || priority == 1)) {
+                                // This is either the first hospice diagnosis or the primary diagnosis
+                                // Get the diagnosis ID we just inserted
+                                val diagnosis = patientDiagnosisRepository.getPatientDiagnosisByPriority(patientId, priority)
+                                diagnosis?.let {
+                                    patientRepository.updatePatientHospiceDiagnosis(patientId, it.id)
+                                }
+                            }
+                        }
+
+                        diagnosisSuccessCount++
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing diagnosis row ${i + 1}", e)
+                        diagnosisErrorCount++
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error importing diagnoses", e)
+                throw e
+            }
+
+            return@withContext Triple(diagnosisSuccessCount, diagnosisErrorCount, unmatchedPatientCount)
         }
 
     /**

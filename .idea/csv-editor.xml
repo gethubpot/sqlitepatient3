@@ -3,7 +3,35 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="C:\Users\aP\AppData\Local\Google\AndroidStudio2024.3\device-explorer\Pixel 7 Pro API 33\_\sdcard\Download\Facilities.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="C:\Users\aP\AppData\Local\Google\AndroidStudio2024.3\device-explorer\Pixel 7 Pro API 33\_\sdcard\Download\Facilities3.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="C:\Users\aP\AppData\Local\Google\AndroidStudio2024.3\device-explorer\Pixel 7 Pro API 33\_\sdcard\Download\PatientData.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="C:\Users\aP\AppData\Local\Google\AndroidStudio2024.3\device-explorer\Pixel 7 Pro API 33\_\sdcard\Download\Patients.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="C:\Users\aP\AppData\Local\Google\AndroidStudio2024.3\device-explorer\Pixel 7 Pro API 33\_\sdcard\Download\patientdiagnoses.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

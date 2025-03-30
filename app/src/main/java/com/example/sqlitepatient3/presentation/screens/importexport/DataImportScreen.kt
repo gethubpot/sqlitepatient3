@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,10 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.sqlitepatient3.presentation.components.ConfirmationDialog
 import kotlinx.coroutines.launch
-
-enum class ImportType {
-    PATIENTS, FACILITIES
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,13 +124,14 @@ fun DataImportScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
+                // Changed from 2-button to 3-button segmented control
                 SingleChoiceSegmentedButtonRow(
                     modifier = Modifier.padding(bottom = 16.dp)
                 ) {
                     SegmentedButton(
                         selected = importType == ImportType.PATIENTS,
                         onClick = { viewModel.setImportType(ImportType.PATIENTS) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Person,
@@ -148,7 +146,7 @@ fun DataImportScreen(
                     SegmentedButton(
                         selected = importType == ImportType.FACILITIES,
                         onClick = { viewModel.setImportType(ImportType.FACILITIES) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Business,
@@ -158,6 +156,21 @@ fun DataImportScreen(
                         }
                     ) {
                         Text("Facilities")
+                    }
+
+                    SegmentedButton(
+                        selected = importType == ImportType.DIAGNOSES,
+                        onClick = { viewModel.setImportType(ImportType.DIAGNOSES) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.MedicalServices,
+                                contentDescription = null,
+                                modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                            )
+                        }
+                    ) {
+                        Text("Diagnoses")
                     }
                 }
 
@@ -228,38 +241,69 @@ fun DataImportScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        if (importType == ImportType.PATIENTS) {
-                            Text("Patient CSV should have the following headers:")
-                            Text(
-                                text = "firstName, lastName, dateOfBirth (MM/DD/YYYY), isMale (true/false), medicareNumber, facilityCode",
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
+                        when (importType) {
+                            ImportType.PATIENTS -> {
+                                Text("Patient CSV should have the following headers:")
+                                Text(
+                                    text = "firstName, lastName, dateOfBirth (MM/DD/YYYY), isMale (true/false), medicareNumber, facilityCode",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            Text("Example:")
-                            Text(
-                                text = "John,Doe,01/15/1950,true,123456789A,GH001",
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        } else {
-                            Text("Facility CSV should have the following headers:")
-                            Text(
-                                text = "name, facilityCode, address1, city, state, zipCode, phoneNumber, isActive (true/false)",
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
+                                Text("Example:")
+                                Text(
+                                    text = "John,Doe,01/15/1950,true,123456789A,GH001",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            ImportType.FACILITIES -> {
+                                Text("Facility CSV should have the following headers:")
+                                Text(
+                                    text = "name, facilityCode, address1, city, state, zipCode, phoneNumber, isActive (true/false)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
 
-                            Text("Example:")
-                            Text(
-                                text = "General Hospital,GH001,123 Main St,Metropolis,NY,10001,555-123-4567,true",
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text("Example:")
+                                Text(
+                                    text = "General Hospital,GH001,123 Main St,Metropolis,NY,10001,555-123-4567,true",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+
+                            ImportType.DIAGNOSES -> {
+                                Text("Diagnosis CSV should have the following headers:")
+                                Text(
+                                    text = "patientUPI, icdCode, description, priority, isHospiceCode (true/false), active (true/false)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text("Example:")
+                                Text(
+                                    text = "smijoh530915,I10,Essential (primary) hypertension,1,false,true",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = "Note: Patient UPI format is first 3 letters of lastName + first 3 letters of firstName + birth date in YYMMDD format",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -313,7 +357,11 @@ fun DataImportScreen(
     if (showConfirmDialog) {
         ConfirmationDialog(
             title = "Confirm Import",
-            message = "Are you sure you want to import this data? This will add new records to your database.",
+            message = when(importType) {
+                ImportType.PATIENTS -> "Are you sure you want to import this patient data? This will add new patients to your database."
+                ImportType.FACILITIES -> "Are you sure you want to import this facility data? This will add new facilities to your database."
+                ImportType.DIAGNOSES -> "Are you sure you want to import this diagnosis data? This will add new diagnoses to your database. Make sure you have already imported the patients."
+            },
             onConfirm = {
                 scope.launch {
                     viewModel.importData(context)
