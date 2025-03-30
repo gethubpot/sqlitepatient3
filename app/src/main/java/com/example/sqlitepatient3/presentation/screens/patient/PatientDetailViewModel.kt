@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -57,6 +59,7 @@ class PatientDetailViewModel @Inject constructor(
     private fun loadPatientData() {
         viewModelScope.launch {
             try {
+                _isLoading.value = true
                 // Load patient
                 val patient = getPatientByIdUseCase(patientId)
                 if (patient != null) {
@@ -69,24 +72,32 @@ class PatientDetailViewModel @Inject constructor(
                         }
                     }
 
-                    // Load recent events
+                    // Load recent events using launchIn
                     getEventsByPatientUseCase(patientId)
-                        .catch { e -> _errorMessage.value = "Error loading events: ${e.message}" }
-                        .collectLatest { events ->
+                        .catch { e ->
+                            _errorMessage.value = "Error loading events: ${e.message}"
+                        }
+                        .onEach { events ->
                             _recentEvents.value = events.take(5) // Only show 5 most recent
                         }
+                        .launchIn(viewModelScope)
 
-                    // Load diagnoses
+                    // Load diagnoses using launchIn
                     getActivePatientDiagnosesUseCase(patientId)
-                        .catch { e -> _errorMessage.value = "Error loading diagnoses: ${e.message}" }
-                        .collectLatest { diagnoses ->
+                        .catch { e ->
+                            _errorMessage.value = "Error loading diagnoses: ${e.message}"
+                        }
+                        .onEach { diagnoses ->
                             _diagnoses.value = diagnoses
                         }
+                        .launchIn(viewModelScope)
                 } else {
                     _errorMessage.value = "Patient not found"
+                    _patient.value = null
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error loading patient: ${e.message}"
+                _patient.value = null
             } finally {
                 _isLoading.value = false
             }

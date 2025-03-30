@@ -64,7 +64,7 @@ fun PatientDetailScreen(
         return
     }
 
-    // Patient not found
+// Patient not found
     if (patient == null) {
         Scaffold(
             topBar = {
