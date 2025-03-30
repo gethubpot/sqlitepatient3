@@ -22,15 +22,21 @@ interface PatientRepository {
     suspend fun getPatientCount(): Int
     suspend fun getPatientCountByFacility(facilityId: Long): Int
 
-    // Write operations
+    // --- MODIFIED Method Signature ---
     suspend fun insertPatient(
         firstName: String,
         lastName: String,
         dateOfBirth: LocalDate?,
         isMale: Boolean,
         facilityId: Long? = null,
-        medicareNumber: String = ""
+        medicareNumber: String = "",
+        // Add the new flag parameters:
+        isHospice: Boolean,
+        onCcm: Boolean,
+        onPsych: Boolean,
+        onPsyMed: Boolean
     ): Long
+    // --- END MODIFIED Method Signature ---
 
     suspend fun updatePatient(patient: Patient)
     suspend fun deletePatient(patient: Patient)

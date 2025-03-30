@@ -76,7 +76,7 @@ class AddEditPatientViewModel @Inject constructor(
     val onPsyMed: StateFlow<Boolean> = _onPsyMed.asStateFlow()
 
     // Available facilities for dropdown
-    val facilities = getActiveFacilitiesUseCase().stateIn(
+    val facilities: StateFlow<List<Facility>> = getActiveFacilitiesUseCase().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
@@ -173,10 +173,11 @@ class AddEditPatientViewModel @Inject constructor(
             _errorMessage.value = "Last name is required"
             return false
         }
+        // Add any other necessary validation here
         return true
     }
 
-    // Save patient
+    // --- MODIFIED Save Patient Logic ---
     fun savePatient() {
         if (!isValid()) return
 
@@ -184,37 +185,29 @@ class AddEditPatientViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (patientId == null) {
-                    // Create new patient
-                    val id = addPatientUseCase(
+                    // Create new patient (Simplified using Strategy 1)
+                    // Directly call the updated use case with all flags
+                    addPatientUseCase(
                         firstName = _firstName.value,
                         lastName = _lastName.value,
                         dateOfBirth = _dateOfBirth.value,
                         isMale = _isMale.value,
                         facilityId = _facilityId.value,
-                        medicareNumber = _medicareNumber.value
+                        medicareNumber = _medicareNumber.value,
+                        // Pass the flags directly:
+                        isHospice = _isHospice.value,
+                        onCcm = _onCcm.value,
+                        onPsych = _onPsych.value,
+                        onPsyMed = _onPsyMed.value
                     )
+                    // The fetch and update steps previously here are now removed
 
-                    // After successful insert, we need to get the newly created patient
-                    // to update its status flags if they're different from defaults
-                    val newPatient = getPatientByIdUseCase(id)
-                    if (newPatient != null) {
-                        // Check if we need to update any status flags
-                        if (_isHospice.value || _onCcm.value || _onPsych.value || _onPsyMed.value) {
-                            updatePatientUseCase(
-                                newPatient.copy(
-                                    isHospice = _isHospice.value,
-                                    onCcm = _onCcm.value,
-                                    onPsych = _onPsych.value,
-                                    onPsyMed = _onPsyMed.value
-                                )
-                            )
-                        }
-                    }
                 } else {
-                    // Update existing patient
+                    // Update existing patient (Logic remains the same)
                     val patient = getPatientByIdUseCase(patientId)
                     if (patient != null) {
                         updatePatientUseCase(
+                            // Update all fields from the current state
                             patient.copy(
                                 firstName = _firstName.value,
                                 lastName = _lastName.value,
@@ -226,17 +219,19 @@ class AddEditPatientViewModel @Inject constructor(
                                 onCcm = _onCcm.value,
                                 onPsych = _onPsych.value,
                                 onPsyMed = _onPsyMed.value
+                                // Note: upi, createdAt, updatedAt are handled by repository/entity
                             )
                         )
                     } else {
-                        _errorMessage.value = "Patient not found"
+                        _errorMessage.value = "Patient not found, cannot update."
                         _isSaving.value = false
-                        return@launch
+                        return@launch // Exit if patient to update wasn't found
                     }
                 }
 
-                // Success
+                // Success for both create and update paths
                 _saveSuccess.value = true
+
             } catch (e: Exception) {
                 _errorMessage.value = "Error saving patient: ${e.localizedMessage}"
             } finally {
@@ -244,4 +239,5 @@ class AddEditPatientViewModel @Inject constructor(
             }
         }
     }
+    // --- END MODIFIED Save Patient Logic ---
 }

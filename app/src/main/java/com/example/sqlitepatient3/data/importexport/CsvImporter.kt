@@ -114,26 +114,24 @@ class CsvImporter @Inject constructor(
                             "true",
                             ignoreCase = true
                         )
+                        val onPsyMed = getColumnValue(values, headerMap, "onPsyMed").equals(
+                            "true",
+                            ignoreCase = true
+                        )
 
-                        // Insert the patient
+                        // Insert the patient with all required parameters
                         val patientId = patientRepository.insertPatient(
                             firstName = firstName,
                             lastName = lastName,
                             dateOfBirth = dateOfBirth,
                             isMale = isMale,
                             facilityId = facilityId,
-                            medicareNumber = medicareNumber
+                            medicareNumber = medicareNumber,
+                            isHospice = isHospice,
+                            onCcm = onCcm,
+                            onPsych = onPsych,
+                            onPsyMed = onPsyMed
                         )
-
-                        // If the patient has special flags, update them separately
-                        if (isHospice || onCcm || onPsych) {
-                            val patient = patientRepository.getPatientById(patientId)
-                            if (patient != null) {
-                                patientRepository.updatePatientHospiceStatus(patientId, isHospice)
-                                patientRepository.updatePatientCcmStatus(patientId, onCcm)
-                                patientRepository.updatePatientPsychStatus(patientId, onPsych)
-                            }
-                        }
 
                         successCount++
                     } catch (e: Exception) {

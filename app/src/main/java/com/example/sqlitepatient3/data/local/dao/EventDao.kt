@@ -6,7 +6,7 @@ import com.example.sqlitepatient3.data.local.relation.PatientWithEvents
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Data Access Object for the events table.
+ * Data Access Object for the events table___>
  */
 @Dao
 interface EventDao {

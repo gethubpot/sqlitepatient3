@@ -30,6 +30,7 @@ class SearchPatientsUseCase @Inject constructor(
     }
 }
 
+// --- MODIFIED Use Case ---
 class AddPatientUseCase @Inject constructor(
     private val patientRepository: PatientRepository
 ) {
@@ -39,7 +40,12 @@ class AddPatientUseCase @Inject constructor(
         dateOfBirth: LocalDate?,
         isMale: Boolean,
         facilityId: Long? = null,
-        medicareNumber: String = ""
+        medicareNumber: String = "",
+        // Add the new flag parameters:
+        isHospice: Boolean,
+        onCcm: Boolean,
+        onPsych: Boolean,
+        onPsyMed: Boolean
     ): Long {
         return patientRepository.insertPatient(
             firstName = firstName,
@@ -47,10 +53,16 @@ class AddPatientUseCase @Inject constructor(
             dateOfBirth = dateOfBirth,
             isMale = isMale,
             facilityId = facilityId,
-            medicareNumber = medicareNumber
+            medicareNumber = medicareNumber,
+            // Pass the new flags to the repository method:
+            isHospice = isHospice,
+            onCcm = onCcm,
+            onPsych = onPsych,
+            onPsyMed = onPsyMed
         )
     }
 }
+// --- END MODIFIED Use Case ---
 
 class UpdatePatientUseCase @Inject constructor(
     private val patientRepository: PatientRepository

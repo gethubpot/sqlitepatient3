@@ -18,7 +18,7 @@ import javax.inject.Singleton
 @Singleton
 class PatientRepositoryImpl @Inject constructor(
     private val patientDao: PatientDao,
-    private val patientDiagnosisDao: PatientDiagnosisDao
+    private val patientDiagnosisDao: PatientDiagnosisDao // Keep this if needed elsewhere, otherwise can be removed if not used
 ) : PatientRepository {
 
     override fun getAllPatients(): Flow<List<Patient>> {
@@ -74,13 +74,19 @@ class PatientRepositoryImpl @Inject constructor(
         return patientDao.getPatientCountByFacility(facilityId)
     }
 
+    // --- MODIFIED Method Implementation ---
     override suspend fun insertPatient(
         firstName: String,
         lastName: String,
         dateOfBirth: LocalDate?,
         isMale: Boolean,
         facilityId: Long?,
-        medicareNumber: String
+        medicareNumber: String,
+        // Add the new flag parameters:
+        isHospice: Boolean,
+        onCcm: Boolean,
+        onPsych: Boolean,
+        onPsyMed: Boolean
     ): Long {
         // Generate UPI
         val upi = Patient.generateUpi(lastName, firstName, dateOfBirth)
@@ -93,12 +99,21 @@ class PatientRepositoryImpl @Inject constructor(
             isMale = isMale,
             facilityId = facilityId,
             medicareNumber = medicareNumber,
+            // Use the passed-in values for flags:
+            isHospice = isHospice,
+            onCcm = onCcm,
+            onPsych = onPsych,
+            onPsyMed = onPsyMed,
+            // Keep defaults for other fields not passed in
+            psyMedReviewDate = null, // Assuming this isn't set during initial insert
+            hospiceDiagnosisId = null, // Assuming this isn't set during initial insert
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
         )
 
         return patientDao.insertPatient(patient)
     }
+    // --- END MODIFIED Method Implementation ---
 
     override suspend fun updatePatient(patient: Patient) {
         val entity = PatientEntity.fromDomainModel(patient.copy(updatedAt = System.currentTimeMillis()))
