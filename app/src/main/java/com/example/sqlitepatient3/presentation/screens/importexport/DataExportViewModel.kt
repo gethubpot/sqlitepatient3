@@ -60,6 +60,7 @@ class DataExportViewModel @Inject constructor(
                 val fileUri = when (_exportType.value) {
                     ExportType.PATIENTS -> csvExporter.exportPatients(context, outputUri)
                     ExportType.FACILITIES -> csvExporter.exportFacilities(context, outputUri)
+                    ExportType.EVENTS -> csvExporter.exportEvents(context, outputUri)
                 }
 
                 val message = if (outputUri != null) {

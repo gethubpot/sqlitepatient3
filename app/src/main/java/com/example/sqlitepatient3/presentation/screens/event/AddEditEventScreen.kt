@@ -4,19 +4,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -28,14 +30,13 @@ import com.example.sqlitepatient3.presentation.components.ConfirmationDialog
 import com.example.sqlitepatient3.presentation.components.DatePickerDialog
 import com.example.sqlitepatient3.presentation.components.LoadingScaffold
 import com.example.sqlitepatient3.presentation.components.SectionTitle
+import kotlinx.coroutines.launch // ** ADDED import **
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun AddEditEventScreen(
     eventId: Long? = null,
@@ -52,10 +53,11 @@ fun AddEditEventScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
-    val saveSuccess by viewModel.saveSuccess.collectAsState()
+
+    // Observe the new saveMessage state
+    val saveMessage by viewModel.saveMessage.collectAsState()
 
     val selectedPatient by viewModel.selectedPatient.collectAsState()
-    val patients by viewModel.patients.collectAsState()
     val eventType by viewModel.eventType.collectAsState()
     val visitType by viewModel.visitType.collectAsState()
     val visitLocation by viewModel.visitLocation.collectAsState()
@@ -63,8 +65,7 @@ fun AddEditEventScreen(
     val eventMinutes by viewModel.eventMinutes.collectAsState()
     val noteText by viewModel.noteText.collectAsState()
     val followUpRecurrence by viewModel.followUpRecurrence.collectAsState()
-
-    // Add state for patient search
+    val hospDischargeDate by viewModel.hospDischargeDate.collectAsState()
     val patientSearchQuery by viewModel.patientSearchQuery.collectAsState()
     val filteredPatients by viewModel.filteredPatients.collectAsState()
 
@@ -75,19 +76,47 @@ fun AddEditEventScreen(
     var visitTypeDropdownExpanded by remember { mutableStateOf(false) }
     var visitLocationDropdownExpanded by remember { mutableStateOf(false) }
     var followUpRecurrenceDropdownExpanded by remember { mutableStateOf(false) }
-
-    // Replace the dropdown expanded state with search results expanded state
     var showPatientResults by remember { mutableStateOf(false) }
 
-    // If save was successful, navigate back
-    LaunchedEffect(saveSuccess) {
-        if (saveSuccess) {
-            onSaveComplete()
+    // Focus Requester and Keyboard Controller
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // ** ADDED SnackbarHostState and CoroutineScope **
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Show Snackbar and navigate when message appears
+    LaunchedEffect(saveMessage) {
+        saveMessage?.let { message ->
+            scope.launch {
+                snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+                // Clear the message in the ViewModel *after* showing Snackbar
+                viewModel.clearSaveMessage()
+                // Call navigation callback *after* Snackbar logic
+                onSaveComplete()
+            }
         }
     }
 
+    // REMOVED the LaunchedEffect that observed saveSuccess
+    // LaunchedEffect(saveSuccess) {
+    //     if (saveSuccess) {
+    //         onSaveComplete()
+    //     }
+    // }
+
+    // Request focus for the patient search field when it's initially shown
+    LaunchedEffect(selectedPatient) {
+        if (selectedPatient == null && patientId == null) {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+
+
     // Handle loading state
-    if (isLoading) {
+    if (isLoading && eventId != null) { // Adjusted loading check
         LoadingScaffold(
             title = if (eventId == null) "Schedule Event" else "Edit Event",
             onNavigateUp = onNavigateUp
@@ -101,7 +130,6 @@ fun AddEditEventScreen(
                 title = { Text(if (eventId == null) "Schedule Event" else "Edit Event") },
                 navigationIcon = {
                     IconButton(onClick = {
-                        // Check if there are unsaved changes before navigating up
                         if (selectedPatient != null || noteText.isNotBlank()) {
                             showCancelDialog = true
                         } else {
@@ -115,7 +143,9 @@ fun AddEditEventScreen(
                     }
                 }
             )
-        }
+        },
+        // ** ADDED SnackbarHost to the Scaffold **
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -159,32 +189,22 @@ fun AddEditEventScreen(
 
             // Patient Selection with Search-as-you-type
             Column(modifier = Modifier.fillMaxWidth()) {
-                // If a patient is already selected, show their name with an option to clear
                 if (selectedPatient != null) {
                     OutlinedTextField(
                         value = "${selectedPatient!!.lastName}, ${selectedPatient!!.firstName}",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Selected Patient*") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null
-                            )
-                        },
+                        leadingIcon = { Icon(Icons.Default.Person, null) },
                         trailingIcon = {
                             IconButton(onClick = { viewModel.setPatientId(null) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Clear Patient"
-                                )
+                                Icon(Icons.Default.Clear, "Clear Patient")
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                 } else {
-                    // Search field
                     OutlinedTextField(
                         value = patientSearchQuery,
                         onValueChange = {
@@ -192,43 +212,32 @@ fun AddEditEventScreen(
                             showPatientResults = it.isNotBlank()
                         },
                         label = { Text("Search Patient*") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null
-                            )
-                        },
+                        leadingIcon = { Icon(Icons.Default.Person, null) },
                         trailingIcon = {
                             if (patientSearchQuery.isNotBlank()) {
                                 IconButton(onClick = { viewModel.setPatientSearchQuery("") }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Clear,
-                                        contentDescription = "Clear Search"
-                                    )
+                                    Icon(Icons.Default.Clear, "Clear Search")
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
                         singleLine = true
                     )
 
-                    // Search results
                     if (showPatientResults && patientSearchQuery.isNotBlank()) {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 200.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
                                 if (filteredPatients.isEmpty()) {
                                     Text(
                                         text = "No matching patients found",
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        textAlign = TextAlign.Center,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -241,6 +250,7 @@ fun AddEditEventScreen(
                                                     viewModel.setPatientId(patient.id)
                                                     viewModel.setPatientSearchQuery("")
                                                     showPatientResults = false
+                                                    keyboardController?.hide()
                                                 }
                                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                                             verticalAlignment = Alignment.CenterVertically
@@ -264,9 +274,7 @@ fun AddEditEventScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Event Type Selection
-            Box(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
                 ExposedDropdownMenuBox(
                     expanded = eventTypesDropdownExpanded,
                     onExpandedChange = { eventTypesDropdownExpanded = it }
@@ -277,11 +285,8 @@ fun AddEditEventScreen(
                         readOnly = true,
                         label = { Text("Event Type*") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = eventTypesDropdownExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
                     )
-
                     ExposedDropdownMenu(
                         expanded = eventTypesDropdownExpanded,
                         onDismissRequest = { eventTypesDropdownExpanded = false }
@@ -301,11 +306,10 @@ fun AddEditEventScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Visit Type Selection (only shown for certain event types)
+            // Visit Type & Location (Conditional)
             if (eventType == EventType.FACE_TO_FACE) {
-                Box(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                // Visit Type
+                Box(modifier = Modifier.fillMaxWidth()) {
                     ExposedDropdownMenuBox(
                         expanded = visitTypeDropdownExpanded,
                         onExpandedChange = { visitTypeDropdownExpanded = it }
@@ -316,11 +320,8 @@ fun AddEditEventScreen(
                             readOnly = true,
                             label = { Text("Visit Type") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = visitTypeDropdownExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor()
+                            modifier = Modifier.fillMaxWidth().menuAnchor()
                         )
-
                         ExposedDropdownMenu(
                             expanded = visitTypeDropdownExpanded,
                             onDismissRequest = { visitTypeDropdownExpanded = false }
@@ -337,13 +338,10 @@ fun AddEditEventScreen(
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Visit Location Selection (only shown for face-to-face events)
-                Box(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                // Visit Location
+                Box(modifier = Modifier.fillMaxWidth()) {
                     ExposedDropdownMenuBox(
                         expanded = visitLocationDropdownExpanded,
                         onExpandedChange = { visitLocationDropdownExpanded = it }
@@ -354,11 +352,8 @@ fun AddEditEventScreen(
                             readOnly = true,
                             label = { Text("Visit Location") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = visitLocationDropdownExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor()
+                            modifier = Modifier.fillMaxWidth().menuAnchor()
                         )
-
                         ExposedDropdownMenu(
                             expanded = visitLocationDropdownExpanded,
                             onDismissRequest = { visitLocationDropdownExpanded = false }
@@ -375,7 +370,37 @@ fun AddEditEventScreen(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
+            // Hospital Discharge Date (Conditional)
+            if (eventType == EventType.TCM) {
+                OutlinedTextField(
+                    value = hospDischargeDate?.format(DateTimeFormatter.ofPattern("MM/dd/yyyy")) ?: "Not set",
+                    onValueChange = { },
+                    label = { Text("Hospital Discharge Date*") },
+                    readOnly = true,
+                    leadingIcon = { Icon(Icons.Default.DateRange, null) },
+                    trailingIcon = {
+                        IconButton(onClick = { viewModel.setHospDischargeDate(null) }) {
+                            Icon(Icons.Default.Clear, "Clear Date")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = if (hospDischargeDate == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
+                        focusedBorderColor = if (hospDischargeDate == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    )
+                )
+                if (hospDischargeDate == null) {
+                    Text(
+                        text = "Hospital discharge date is required for TCM events",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
@@ -385,18 +410,10 @@ fun AddEditEventScreen(
                 onValueChange = { },
                 label = { Text("Date*") },
                 readOnly = true,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = null
-                    )
-                },
+                leadingIcon = { Icon(Icons.Default.DateRange, null) },
                 trailingIcon = {
                     IconButton(onClick = { showDatePicker = true }) {
-                        Icon(
-                            imageVector = Icons.Default.DateRange,
-                            contentDescription = "Select Date"
-                        )
+                        Icon(Icons.Default.DateRange, "Select Date")
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -404,7 +421,6 @@ fun AddEditEventScreen(
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-
 
             // Event Duration
             OutlinedTextField(
@@ -424,9 +440,7 @@ fun AddEditEventScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Follow-up Recurrence
-            Box(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
                 ExposedDropdownMenuBox(
                     expanded = followUpRecurrenceDropdownExpanded,
                     onExpandedChange = { followUpRecurrenceDropdownExpanded = it }
@@ -437,11 +451,8 @@ fun AddEditEventScreen(
                         readOnly = true,
                         label = { Text("Follow-up Recurrence") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = followUpRecurrenceDropdownExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
                     )
-
                     ExposedDropdownMenu(
                         expanded = followUpRecurrenceDropdownExpanded,
                         onDismissRequest = { followUpRecurrenceDropdownExpanded = false }
@@ -480,7 +491,8 @@ fun AddEditEventScreen(
             Button(
                 onClick = { viewModel.saveEvent() },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isSaving
+                // Enable button only if not saving AND a patient is selected
+                enabled = !isSaving && selectedPatient != null
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
@@ -494,8 +506,8 @@ fun AddEditEventScreen(
                     Text("Save Event")
                 }
             }
-        }
-    }
+        } // End Column
+    } // End Scaffold padding
 
     // Date Picker Dialog
     if (showDatePicker) {
@@ -523,4 +535,4 @@ fun AddEditEventScreen(
             onDismiss = { showCancelDialog = false }
         )
     }
-}
+} // End AddEditEventScreen composableas

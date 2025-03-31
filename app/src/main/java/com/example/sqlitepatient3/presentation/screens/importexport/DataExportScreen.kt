@@ -53,9 +53,10 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import java.io.File
+import androidx.compose.material.icons.filled.Event
 
 enum class ExportType {
-    PATIENTS, FACILITIES
+    PATIENTS, FACILITIES, EVENTS
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,7 +141,7 @@ fun DataExportScreen(
                     SegmentedButton(
                         selected = exportType == ExportType.PATIENTS,
                         onClick = { viewModel.setExportType(ExportType.PATIENTS) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Person,
@@ -155,7 +156,7 @@ fun DataExportScreen(
                     SegmentedButton(
                         selected = exportType == ExportType.FACILITIES,
                         onClick = { viewModel.setExportType(ExportType.FACILITIES) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Business,
@@ -165,6 +166,21 @@ fun DataExportScreen(
                         }
                     ) {
                         Text("Facilities")
+                    }
+
+                    SegmentedButton(
+                        selected = exportType == ExportType.EVENTS,
+                        onClick = { viewModel.setExportType(ExportType.EVENTS) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Event, // This line caused the error
+                                contentDescription = null,
+                                modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                            )
+                        }
+                    ) {
+                        Text("Events")
                     }
                 }
 
@@ -255,10 +271,17 @@ fun DataExportScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
-                        } else {
+                        } else if (exportType == ExportType.FACILITIES) {
                             Text("Facility CSV will include:")
                             Text(
                                 text = "• name, facilityCode, address1, address2\n• city, state, zipCode\n• phoneNumber, faxNumber, email\n• isActive",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        } else if (exportType == ExportType.EVENTS) {
+                            Text("Events CSV will include:")
+                            Text(
+                                text = "• patientUpi, eventDateTime, eventBillDate\n• eventMinutes, ccmMinutes, noteText\n• eventType, status, diagnoses\n• ttddDate, hospDisDate, eventFile",
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
