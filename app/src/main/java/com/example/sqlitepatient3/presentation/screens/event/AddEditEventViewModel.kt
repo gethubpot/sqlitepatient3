@@ -23,6 +23,8 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 // import java.time.temporal.ChronoUnit // Unused import
 import javax.inject.Inject
+import kotlin.math.max // *** ADDED import for max function ***
+import kotlin.random.Random // *** ADDED import for Random ***
 
 @HiltViewModel
 class AddEditEventViewModel @Inject constructor(
@@ -75,11 +77,7 @@ class AddEditEventViewModel @Inject constructor(
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
-    // REMOVED or repurpose _saveSuccess
-    // private val _saveSuccess = MutableStateFlow(false)
-    // val saveSuccess: StateFlow<Boolean> = _saveSuccess.asStateFlow()
-
-    // ** ADDED state for the confirmation message **
+    // State for the confirmation message
     private val _saveMessage = MutableStateFlow<String?>(null)
     val saveMessage: StateFlow<String?> = _saveMessage.asStateFlow()
 
@@ -111,7 +109,8 @@ class AddEditEventViewModel @Inject constructor(
     private val _eventDateTime = MutableStateFlow(LocalDateTime.now())
     val eventDateTime: StateFlow<LocalDateTime> = _eventDateTime.asStateFlow()
 
-    private val _eventMinutes = MutableStateFlow(30)
+    // *** MODIFIED default value from 30 to 7 ***
+    private val _eventMinutes = MutableStateFlow(7)
     val eventMinutes: StateFlow<Int> = _eventMinutes.asStateFlow()
 
     private val _noteText = MutableStateFlow("")
@@ -143,7 +142,8 @@ class AddEditEventViewModel @Inject constructor(
                     _visitType.value = event.visitType
                     _visitLocation.value = event.visitLocation
                     _eventDateTime.value = event.eventDateTime
-                    _eventMinutes.value = event.eventMinutes
+                    // Load minutes from saved event, ensure it's at least 1
+                    _eventMinutes.value = max(1, event.eventMinutes)
                     _noteText.value = event.noteText ?: ""
                     _followUpRecurrence.value = event.followUpRecurrence
                     _hospDischargeDate.value = event.hospDischargeDate // Load existing discharge date if editing
@@ -183,49 +183,37 @@ class AddEditEventViewModel @Inject constructor(
         val oldType = _eventType.value
         _eventType.value = type
 
-        // --- MODIFIED: TCM Specific Logic ---
+        // TCM Specific Logic
         if (type == EventType.TCM && type != oldType) {
-            // When switching to TCM, check for recent discharge date for the selected patient
             _patientId.value?.let { currentPatientId ->
                 checkAndSetRecentDischargeDate(currentPatientId)
             }
         } else if (type != EventType.TCM) {
-            // If switching away from TCM, clear the discharge date
             _hospDischargeDate.value = null
         }
-        // --- END MODIFIED ---
     }
 
-    /**
-     * Checks for the most recent TCM event with a discharge date within the last 30 days
-     * for the given patient and sets the hospDischargeDate state if found.
-     */
     private fun checkAndSetRecentDischargeDate(patientId: Long) {
         viewModelScope.launch {
             try {
                 val recentEvents = getEventsByPatientUseCase(patientId).firstOrNull() ?: emptyList()
                 val thirtyDaysAgo = LocalDate.now().minusDays(30)
 
-                // Find the most recent TCM event with a discharge date within the last 30 days
                 val recentTcmDischarge = recentEvents
                     .filter { it.eventType == EventType.TCM && it.hospDischargeDate != null }
-                    .mapNotNull { it.hospDischargeDate } // Get non-null discharge dates
-                    .filter { !it.isBefore(thirtyDaysAgo) } // Filter for dates within 30 days
-                    .maxOrNull() // Find the most recent one
+                    .mapNotNull { it.hospDischargeDate }
+                    .filter { !it.isBefore(thirtyDaysAgo) }
+                    .maxOrNull()
 
                 if (recentTcmDischarge != null) {
                     _hospDischargeDate.value = recentTcmDischarge
-                    // Optional: Display a message to the user if desired
-                    // _errorMessage.value = "Recent discharge date found and pre-filled."
                 } else {
-                    // No recent discharge date found, ensure it's cleared unless editing an event that already has one
                     if (eventId == null) { // Only clear if it's a new event
                         _hospDischargeDate.value = null
                     }
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error checking for recent discharge date: ${e.localizedMessage}"
-                // Ensure date is clear if an error occurs during check for a new event
                 if (eventId == null) {
                     _hospDischargeDate.value = null
                 }
@@ -247,13 +235,14 @@ class AddEditEventViewModel @Inject constructor(
     }
 
     fun setEventDate(date: LocalDate) {
-        // Preserve the existing time, only change the date
         val currentTime = _eventDateTime.value.toLocalTime()
         _eventDateTime.value = LocalDateTime.of(date, currentTime)
     }
 
+    // *** MODIFIED to ensure minimum value when user types ***
     fun setEventMinutes(minutes: Int) {
-        _eventMinutes.value = minutes
+        // Ensure minutes don't go below a reasonable minimum, e.g., 1
+        _eventMinutes.value = max(1, minutes)
     }
 
     fun setNoteText(text: String) {
@@ -268,10 +257,25 @@ class AddEditEventViewModel @Inject constructor(
         _errorMessage.value = null
     }
 
-    // ** ADDED function to clear the save message after it's shown **
     fun clearSaveMessage() {
         _saveMessage.value = null
     }
+
+    // *** ADDED function to decrement duration randomly ***
+    fun decrementDurationRandomly() {
+        val decrementAmount = Random.nextInt(3, 6) // Generates 3, 4, or 5
+        val currentMinutes = _eventMinutes.value
+        // Ensure minutes don't go below a reasonable minimum, e.g., 1
+        _eventMinutes.value = max(1, currentMinutes - decrementAmount)
+    }
+
+    // *** ADDED function to increment duration randomly ***
+    fun incrementDurationRandomly() {
+        val incrementAmount = Random.nextInt(3, 6) // Generates 3, 4, or 5
+        val currentMinutes = _eventMinutes.value
+        _eventMinutes.value = currentMinutes + incrementAmount
+    }
+
 
     // Validation
     private fun isValid(): Boolean {
@@ -280,18 +284,21 @@ class AddEditEventViewModel @Inject constructor(
             return false
         }
 
-        // For TCM events, hospital discharge date is required
         if (_eventType.value == EventType.TCM && _hospDischargeDate.value == null) {
             _errorMessage.value = "Hospital discharge date is required for TCM events"
             return false
         }
 
-        // Add other validation rules here if needed (e.g., eventMinutes > 0)
+        // Ensure event minutes are positive
+        if (_eventMinutes.value <= 0) {
+            _errorMessage.value = "Event duration must be positive"
+            return false
+        }
 
         return true
     }
 
-    // --- MODIFIED Save Event Logic ---
+    // Save Event Logic
     fun saveEvent() {
         if (!isValid()) return
 
@@ -304,15 +311,16 @@ class AddEditEventViewModel @Inject constructor(
                     id = eventId ?: 0, // Use 0 for new event, existing id for update
                     patientId = currentPatientId,
                     eventType = _eventType.value,
-                    visitType = if (_eventType.value == EventType.FACE_TO_FACE) _visitType.value else VisitType.NON_VISIT, // Only save if F2F
-                    visitLocation = if (_eventType.value == EventType.FACE_TO_FACE) _visitLocation.value else VisitLocation.NONE, // Only save if F2F
+                    visitType = if (_eventType.value == EventType.FACE_TO_FACE) _visitType.value else VisitType.NON_VISIT,
+                    visitLocation = if (_eventType.value == EventType.FACE_TO_FACE) _visitLocation.value else VisitLocation.NONE,
                     eventMinutes = _eventMinutes.value,
                     noteText = _noteText.value.takeIf { it.isNotBlank() },
                     eventDateTime = _eventDateTime.value,
                     followUpRecurrence = _followUpRecurrence.value,
                     hospDischargeDate = if (_eventType.value == EventType.TCM) _hospDischargeDate.value else null,
-                    eventBillDate = LocalDate.now() // Placeholder - actual calculation might be needed or done at export
-                    // Consider other fields like cptCode, modifier, status if they need setting/updating here
+                    // *** NOTE: eventBillDate calculation is complex and depends on rules.
+                    // Setting to event date for now, might need adjustment based on final logic.
+                    eventBillDate = _eventDateTime.value.toLocalDate()
                 )
 
                 if (eventId == null) {
@@ -328,12 +336,14 @@ class AddEditEventViewModel @Inject constructor(
                         followUpRecurrence = eventToSave.followUpRecurrence
                     ).also { newEventId ->
                         // If it's a TCM event, update with hospital discharge date
+                        // This requires fetching the newly inserted event to update it
                         if (eventToSave.eventType == EventType.TCM && eventToSave.hospDischargeDate != null) {
                             val newEvent = getEventByIdUseCase(newEventId)
                             if (newEvent != null) {
                                 updateEventUseCase(
                                     newEvent.copy(
                                         hospDischargeDate = eventToSave.hospDischargeDate
+                                        // Recalculate bill date if necessary based on discharge date
                                     )
                                 )
                             }
@@ -341,18 +351,19 @@ class AddEditEventViewModel @Inject constructor(
                     }
 
                 } else {
-                    // Update existing event - fetch the original creation date if needed
+                    // Update existing event
                     val existingEvent = getEventByIdUseCase(eventId)
                     if (existingEvent != null) {
                         updateEventUseCase(
                             eventToSave.copy(
                                 createdAt = existingEvent.createdAt, // Preserve original creation timestamp
-                                // Ensure other fields like cptCode, modifier, status are correctly copied if needed
+                                // Ensure other fields are copied correctly if they aren't part of the form
                                 cptCode = existingEvent.cptCode,
                                 modifier = existingEvent.modifier,
                                 status = existingEvent.status,
                                 monthlyBillingId = existingEvent.monthlyBillingId,
-                                eventFile = existingEvent.eventFile
+                                eventFile = existingEvent.eventFile,
+                                eventBillDate = existingEvent.eventBillDate // Preserve original bill date unless recalculated
                             )
                         )
                     } else {
@@ -363,12 +374,8 @@ class AddEditEventViewModel @Inject constructor(
                     }
                 }
 
-                // Determine the success message
                 val successMessage = if (eventId == null) "Event scheduled successfully" else "Event updated successfully"
-
-                // **CHANGE**: Set the message instead of just saveSuccess
                 _saveMessage.value = successMessage
-                // _saveSuccess.value = true // Remove or keep if used elsewhere
 
             } catch (e: Exception) {
                 _errorMessage.value = "Error saving event: ${e.localizedMessage}"
@@ -378,5 +385,4 @@ class AddEditEventViewModel @Inject constructor(
             }
         }
     }
-    // --- END MODIFIED Save Event Logic ---
 }

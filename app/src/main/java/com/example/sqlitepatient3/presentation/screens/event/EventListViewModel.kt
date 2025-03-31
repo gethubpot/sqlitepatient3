@@ -1,152 +1,56 @@
 package com.example.sqlitepatient3.presentation.screens.event
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sqlitepatient3.domain.model.Event
-import com.example.sqlitepatient3.domain.model.EventStatus
 import com.example.sqlitepatient3.domain.model.EventType
-import com.example.sqlitepatient3.domain.model.Facility
+import com.example.sqlitepatient3.domain.model.FollowUpRecurrence
 import com.example.sqlitepatient3.domain.model.Patient
-import com.example.sqlitepatient3.domain.usecase.event.GetAllEventsUseCase
-import com.example.sqlitepatient3.domain.usecase.event.GetEventsByStatusUseCase
-import com.example.sqlitepatient3.domain.usecase.event.GetEventsByTypeUseCase
-import com.example.sqlitepatient3.domain.usecase.facility.GetAllFacilitiesUseCase
+import com.example.sqlitepatient3.domain.model.VisitLocation
+import com.example.sqlitepatient3.domain.model.VisitType
+import com.example.sqlitepatient3.domain.usecase.event.AddEventUseCase
+import com.example.sqlitepatient3.domain.usecase.event.GetEventByIdUseCase
+import com.example.sqlitepatient3.domain.usecase.event.GetEventsByPatientUseCase // Added
+import com.example.sqlitepatient3.domain.usecase.event.UpdateEventUseCase
 import com.example.sqlitepatient3.domain.usecase.patient.GetAllPatientsUseCase
+import com.example.sqlitepatient3.domain.usecase.patient.GetPatientByIdUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+// import java.time.temporal.ChronoUnit // Unused import
 import javax.inject.Inject
-
-// Data class to hold combined Event, Patient Name, and Facility Code data
-data class EventListItemData(
-    val event: Event,
-    val patientFirstName: String,
-    val patientLastName: String,
-    val facilityCode: String?
-)
+import kotlin.random.Random // *** ADDED import for Random ***
 
 @HiltViewModel
-class EventListViewModel @Inject constructor(
-    private val getAllEventsUseCase: GetAllEventsUseCase,
-    private val getEventsByTypeUseCase: GetEventsByTypeUseCase,
-    private val getEventsByStatusUseCase: GetEventsByStatusUseCase,
+class AddEditEventViewModel @Inject constructor(
+    private val getEventByIdUseCase: GetEventByIdUseCase,
+    private val addEventUseCase: AddEventUseCase,
+    private val updateEventUseCase: UpdateEventUseCase,
     private val getAllPatientsUseCase: GetAllPatientsUseCase,
-    private val getAllFacilitiesUseCase: GetAllFacilitiesUseCase
+    private val getPatientByIdUseCase: GetPatientByIdUseCase,
+    private val getEventsByPatientUseCase: GetEventsByPatientUseCase, // Added
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    // --- UI State ---
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    // Patient search properties
+    private val _patientSearchQuery = MutableStateFlow("")
+    val patientSearchQuery: StateFlow<String> = _patientSearchQuery.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    // --- Filter State ---
-    private val _filterEventType = MutableStateFlow<EventType?>(null)
-    val filterEventType: StateFlow<EventType?> = _filterEventType.asStateFlow()
-
-    private val _filterStatus = MutableStateFlow<EventStatus?>(null)
-    val filterStatus: StateFlow<EventStatus?> = _filterStatus.asStateFlow()
-
-    // --- Sort Options ---
-    enum class SortOption {
-        DATE_ASC, DATE_DESC, TYPE, STATUS, PATIENT_NAME_ASC, PATIENT_NAME_DESC, FACILITY_CODE_ASC, FACILITY_CODE_DESC
-    }
-
-    private val _currentSortOption = MutableStateFlow(SortOption.DATE_DESC)
-    val currentSortOption: StateFlow<SortOption> = _currentSortOption.asStateFlow()
-
-    // --- Main Events Flow (Corrected combine structure using listOf and array destructuring) ---
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val events: StateFlow<List<EventListItemData>> = combine(
-        // Pass flows as a List
-        listOf(
-            _searchQuery.debounce(300),
-            _filterEventType,
-            _filterStatus,
-            _currentSortOption,
-            getAllPatientsUseCase(),
-            getAllFacilitiesUseCase()
-        )
-    ) { array -> // Lambda now takes a single 'array' argument
-        // Extract and cast values from the array based on the order in listOf()
-        // It's crucial that the types here match the types emitted by the flows
-        @Suppress("UNCHECKED_CAST") // Suppress cast warning, ensure flow types are correct
-        val query = array[0] as String
-        @Suppress("UNCHECKED_CAST")
-        val eventType = array[1] as EventType?
-        @Suppress("UNCHECKED_CAST")
-        val status = array[2] as EventStatus?
-        @Suppress("UNCHECKED_CAST")
-        val sortOption = array[3] as SortOption
-        @Suppress("UNCHECKED_CAST")
-        val patients = array[4] as List<Patient>
-        @Suppress("UNCHECKED_CAST")
-        val facilities = array[5] as List<Facility>
-
-        _isLoading.value = true
-        // Create maps
-        val patientMap = patients.associateBy { it.id }
-        val facilityMap = facilities.associateBy { it.id }
-        // Return the parameters object
-        FilterSortParameters(query, eventType, status, sortOption, patientMap, facilityMap)
-    }.flatMapLatest { params -> // params is FilterSortParameters
-        // Get the base list of events based on filters
-        val baseFlow = when {
-            params.eventType != null -> getEventsByTypeUseCase(params.eventType)
-            params.status != null -> getEventsByStatusUseCase(params.status)
-            else -> getAllEventsUseCase()
-        }
-
-        baseFlow.map { events ->
-            // Apply secondary filter if needed
-            val filteredEvents = when {
-                params.eventType != null && params.status != null -> {
-                    events.filter { it.status == params.status }
-                }
-                else -> events
+    val filteredPatients = combine(
+        getAllPatientsUseCase(),
+        _patientSearchQuery
+    ) { patients, query ->
+        if (query.isBlank()) {
+            patients // Show all if query is blank (or handle differently if needed)
+        } else {
+            patients.filter {
+                it.firstName.contains(query, ignoreCase = true) ||
+                        it.lastName.contains(query, ignoreCase = true)
             }
-
-            // Map events to EventListItemData and apply search filter
-            val mappedAndSearched = filteredEvents.mapNotNull { event ->
-                params.patientMap[event.patientId]?.let { patient ->
-                    val facilityCode = patient.facilityId?.let { facId ->
-                        params.facilityMap[facId]?.facilityCode
-                    }
-                    EventListItemData(
-                        event = event,
-                        patientFirstName = patient.firstName,
-                        patientLastName = patient.lastName,
-                        facilityCode = facilityCode
-                    )
-                }
-            }.filter { item -> // Apply search query AFTER mapping
-                if (params.query.isNotBlank()) {
-                    item.patientLastName.contains(params.query, ignoreCase = true) ||
-                            item.patientFirstName.contains(params.query, ignoreCase = true) ||
-                            (item.facilityCode?.contains(params.query, ignoreCase = true) ?: false) ||
-                            item.event.eventType.toString().contains(params.query, ignoreCase = true) ||
-                            item.event.status.toString().contains(params.query, ignoreCase = true) ||
-                            (item.event.noteText?.contains(params.query, ignoreCase = true) ?: false)
-                } else {
-                    true // No query, include all items
-                }
-            }
-
-            // Apply sorting
-            val sorted = when (params.sortOption) {
-                SortOption.DATE_ASC -> mappedAndSearched.sortedBy { it.event.eventDateTime }
-                SortOption.DATE_DESC -> mappedAndSearched.sortedByDescending { it.event.eventDateTime }
-                SortOption.TYPE -> mappedAndSearched.sortedBy { it.event.eventType.toString() }
-                SortOption.STATUS -> mappedAndSearched.sortedBy { it.event.status.toString() }
-                SortOption.PATIENT_NAME_ASC -> mappedAndSearched.sortedBy { it.patientLastName + it.patientFirstName }
-                SortOption.PATIENT_NAME_DESC -> mappedAndSearched.sortedByDescending { it.patientLastName + it.patientFirstName }
-                SortOption.FACILITY_CODE_ASC -> mappedAndSearched.sortedBy { it.facilityCode ?: "" } // Handle null facility codes
-                SortOption.FACILITY_CODE_DESC -> mappedAndSearched.sortedByDescending { it.facilityCode ?: "" }
-            }
-
-            _isLoading.value = false
-            sorted
         }
     }.stateIn(
         scope = viewModelScope,
@@ -154,30 +58,324 @@ class EventListViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    // --- Actions ---
-    fun setSearchQuery(query: String) {
-        _searchQuery.value = query
+    fun setPatientSearchQuery(query: String) {
+        _patientSearchQuery.value = query
     }
 
-    fun setFilterEventType(type: EventType?) {
-        _filterEventType.value = type
-    }
+    // Event/Patient IDs from navigation
+    private val eventId: Long? = savedStateHandle.get<Long>("eventId")?.takeIf { it != -1L }
+    private val initialPatientId: Long? = savedStateHandle.get<Long>("patientId")?.takeIf { it != -1L }
 
-    fun setFilterStatus(status: EventStatus?) {
-        _filterStatus.value = status
-    }
+    // UI state
+    private val _isLoading = MutableStateFlow(eventId != null)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    fun setSortOption(option: SortOption) {
-        _currentSortOption.value = option
-    }
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // --- Helper class for parameters ---
-    private data class FilterSortParameters(
-        val query: String,
-        val eventType: EventType?,
-        val status: EventStatus?,
-        val sortOption: SortOption,
-        val patientMap: Map<Long, Patient>,
-        val facilityMap: Map<Long, Facility>
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
+    // State for the confirmation message
+    private val _saveMessage = MutableStateFlow<String?>(null)
+    val saveMessage: StateFlow<String?> = _saveMessage.asStateFlow()
+
+    // Hospital discharge date state
+    private val _hospDischargeDate = MutableStateFlow<LocalDate?>(null)
+    val hospDischargeDate: StateFlow<LocalDate?> = _hospDischargeDate.asStateFlow()
+
+    // Patient related state
+    private val _patientId = MutableStateFlow<Long?>(null)
+    private val _selectedPatient = MutableStateFlow<Patient?>(null)
+    val selectedPatient: StateFlow<Patient?> = _selectedPatient.asStateFlow()
+
+    val patients = getAllPatientsUseCase().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
     )
+
+    // Form fields
+    private val _eventType = MutableStateFlow(EventType.CCM)
+    val eventType: StateFlow<EventType> = _eventType.asStateFlow()
+
+    private val _visitType = MutableStateFlow(VisitType.HOME_VISIT)
+    val visitType: StateFlow<VisitType> = _visitType.asStateFlow()
+
+    private val _visitLocation = MutableStateFlow(VisitLocation.PATIENT_HOME)
+    val visitLocation: StateFlow<VisitLocation> = _visitLocation.asStateFlow()
+
+    private val _eventDateTime = MutableStateFlow(LocalDateTime.now())
+    val eventDateTime: StateFlow<LocalDateTime> = _eventDateTime.asStateFlow()
+
+    // *** MODIFIED default value from 30 to 7 ***
+    private val _eventMinutes = MutableStateFlow(7)
+    val eventMinutes: StateFlow<Int> = _eventMinutes.asStateFlow()
+
+    private val _noteText = MutableStateFlow("")
+    val noteText: StateFlow<String> = _noteText.asStateFlow()
+
+    private val _followUpRecurrence = MutableStateFlow(FollowUpRecurrence.NONE)
+    val followUpRecurrence: StateFlow<FollowUpRecurrence> = _followUpRecurrence.asStateFlow()
+
+    init {
+        if (eventId != null) {
+            loadEvent(eventId)
+        } else {
+            initialPatientId?.let { setPatientId(it) }
+            _isLoading.value = false
+            // Ensure TCM check runs if default is CCM and patient ID is provided initially
+            if (_eventType.value == EventType.TCM && initialPatientId != null) {
+                checkAndSetRecentDischargeDate(initialPatientId)
+            }
+        }
+    }
+
+    private fun loadEvent(id: Long) {
+        viewModelScope.launch {
+            try {
+                val event = getEventByIdUseCase(id)
+                if (event != null) {
+                    setPatientId(event.patientId)
+                    _eventType.value = event.eventType
+                    _visitType.value = event.visitType
+                    _visitLocation.value = event.visitLocation
+                    _eventDateTime.value = event.eventDateTime
+                    // Load minutes from saved event, otherwise keep default (7)
+                    _eventMinutes.value = event.eventMinutes.takeIf { it > 0 } ?: 7
+                    _noteText.value = event.noteText ?: ""
+                    _followUpRecurrence.value = event.followUpRecurrence
+                    _hospDischargeDate.value = event.hospDischargeDate // Load existing discharge date if editing
+                } else {
+                    _errorMessage.value = "Event not found"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error loading event: ${e.localizedMessage}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun setPatientId(id: Long?) {
+        _patientId.value = id
+        if (id != null) {
+            viewModelScope.launch {
+                try {
+                    _selectedPatient.value = getPatientByIdUseCase(id)
+                    _patientSearchQuery.value = "" // Clear search query on selection
+                    // If event type is already TCM, check for recent discharge date
+                    if (_eventType.value == EventType.TCM) {
+                        checkAndSetRecentDischargeDate(id)
+                    }
+                } catch (e: Exception) {
+                    _errorMessage.value = "Error loading patient: ${e.localizedMessage}"
+                }
+            }
+        } else {
+            _selectedPatient.value = null
+            _hospDischargeDate.value = null // Clear discharge date if patient is cleared
+        }
+    }
+
+    fun setEventType(type: EventType) {
+        val oldType = _eventType.value
+        _eventType.value = type
+
+        // TCM Specific Logic
+        if (type == EventType.TCM && type != oldType) {
+            _patientId.value?.let { currentPatientId ->
+                checkAndSetRecentDischargeDate(currentPatientId)
+            }
+        } else if (type != EventType.TCM) {
+            _hospDischargeDate.value = null
+        }
+    }
+
+    private fun checkAndSetRecentDischargeDate(patientId: Long) {
+        viewModelScope.launch {
+            try {
+                val recentEvents = getEventsByPatientUseCase(patientId).firstOrNull() ?: emptyList()
+                val thirtyDaysAgo = LocalDate.now().minusDays(30)
+
+                val recentTcmDischarge = recentEvents
+                    .filter { it.eventType == EventType.TCM && it.hospDischargeDate != null }
+                    .mapNotNull { it.hospDischargeDate }
+                    .filter { !it.isBefore(thirtyDaysAgo) }
+                    .maxOrNull()
+
+                if (recentTcmDischarge != null) {
+                    _hospDischargeDate.value = recentTcmDischarge
+                } else {
+                    if (eventId == null) { // Only clear if it's a new event
+                        _hospDischargeDate.value = null
+                    }
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error checking for recent discharge date: ${e.localizedMessage}"
+                if (eventId == null) {
+                    _hospDischargeDate.value = null
+                }
+            }
+        }
+    }
+
+
+    fun setHospDischargeDate(date: LocalDate?) {
+        _hospDischargeDate.value = date
+    }
+
+    fun setVisitType(type: VisitType) {
+        _visitType.value = type
+    }
+
+    fun setVisitLocation(location: VisitLocation) {
+        _visitLocation.value = location
+    }
+
+    fun setEventDate(date: LocalDate) {
+        val currentTime = _eventDateTime.value.toLocalTime()
+        _eventDateTime.value = LocalDateTime.of(date, currentTime)
+    }
+
+    // *** MODIFIED to ensure minimum value when user types ***
+    fun setEventMinutes(minutes: Int) {
+        // Ensure minutes don't go below a reasonable minimum, e.g., 1
+        _eventMinutes.value = maxOf(1, minutes)
+    }
+
+    fun setNoteText(text: String) {
+        _noteText.value = text
+    }
+
+    fun setFollowUpRecurrence(recurrence: FollowUpRecurrence) {
+        _followUpRecurrence.value = recurrence
+    }
+
+    fun clearError() {
+        _errorMessage.value = null
+    }
+
+    fun clearSaveMessage() {
+        _saveMessage.value = null
+    }
+
+    // *** ADDED function to decrement duration randomly ***
+    fun decrementDurationRandomly() {
+        val decrementAmount = Random.nextInt(3, 6) // Generates 3, 4, or 5
+        val currentMinutes = _eventMinutes.value
+        // Ensure minutes don't go below a reasonable minimum, e.g., 1
+        _eventMinutes.value = maxOf(1, currentMinutes - decrementAmount)
+    }
+
+    // *** ADDED function to increment duration randomly ***
+    fun incrementDurationRandomly() {
+        val incrementAmount = Random.nextInt(3, 6) // Generates 3, 4, or 5
+        val currentMinutes = _eventMinutes.value
+        _eventMinutes.value = currentMinutes + incrementAmount
+    }
+
+
+    // Validation
+    private fun isValid(): Boolean {
+        if (_patientId.value == null) {
+            _errorMessage.value = "Please select a patient"
+            return false
+        }
+
+        if (_eventType.value == EventType.TCM && _hospDischargeDate.value == null) {
+            _errorMessage.value = "Hospital discharge date is required for TCM events"
+            return false
+        }
+
+        // Ensure event minutes are positive
+        if (_eventMinutes.value <= 0) {
+            _errorMessage.value = "Event duration must be positive"
+            return false
+        }
+
+        return true
+    }
+
+    // Save Event Logic
+    fun saveEvent() {
+        if (!isValid()) return
+
+        _isSaving.value = true
+        viewModelScope.launch {
+            try {
+                val currentPatientId = _patientId.value ?: return@launch // Ensure patientId is not null
+
+                val eventToSave = Event(
+                    id = eventId ?: 0, // Use 0 for new event, existing id for update
+                    patientId = currentPatientId,
+                    eventType = _eventType.value,
+                    visitType = if (_eventType.value == EventType.FACE_TO_FACE) _visitType.value else VisitType.NON_VISIT,
+                    visitLocation = if (_eventType.value == EventType.FACE_TO_FACE) _visitLocation.value else VisitLocation.NONE,
+                    eventMinutes = _eventMinutes.value,
+                    noteText = _noteText.value.takeIf { it.isNotBlank() },
+                    eventDateTime = _eventDateTime.value,
+                    followUpRecurrence = _followUpRecurrence.value,
+                    hospDischargeDate = if (_eventType.value == EventType.TCM) _hospDischargeDate.value else null,
+                    eventBillDate = LocalDate.now() // Placeholder
+                )
+
+                if (eventId == null) {
+                    // Create new event
+                    addEventUseCase(
+                        patientId = eventToSave.patientId,
+                        eventType = eventToSave.eventType,
+                        visitType = eventToSave.visitType,
+                        visitLocation = eventToSave.visitLocation,
+                        eventMinutes = eventToSave.eventMinutes,
+                        noteText = eventToSave.noteText,
+                        eventDateTime = eventToSave.eventDateTime,
+                        followUpRecurrence = eventToSave.followUpRecurrence
+                    ).also { newEventId ->
+                        // If it's a TCM event, update with hospital discharge date
+                        if (eventToSave.eventType == EventType.TCM && eventToSave.hospDischargeDate != null) {
+                            val newEvent = getEventByIdUseCase(newEventId)
+                            if (newEvent != null) {
+                                updateEventUseCase(
+                                    newEvent.copy(
+                                        hospDischargeDate = eventToSave.hospDischargeDate
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                } else {
+                    // Update existing event
+                    val existingEvent = getEventByIdUseCase(eventId)
+                    if (existingEvent != null) {
+                        updateEventUseCase(
+                            eventToSave.copy(
+                                createdAt = existingEvent.createdAt, // Preserve original creation timestamp
+                                cptCode = existingEvent.cptCode,
+                                modifier = existingEvent.modifier,
+                                status = existingEvent.status,
+                                monthlyBillingId = existingEvent.monthlyBillingId,
+                                eventFile = existingEvent.eventFile
+                            )
+                        )
+                    } else {
+                        _errorMessage.value = "Event not found for update"
+                        _isSaving.value = false
+                        _saveMessage.value = null // Clear message on error
+                        return@launch
+                    }
+                }
+
+                val successMessage = if (eventId == null) "Event scheduled successfully" else "Event updated successfully"
+                _saveMessage.value = successMessage
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Error saving event: ${e.localizedMessage}"
+                _saveMessage.value = null // Ensure message is null on error
+            } finally {
+                _isSaving.value = false
+            }
+        }
+    }
 }

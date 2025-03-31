@@ -3,10 +3,14 @@ package com.example.sqlitepatient3.presentation.screens.event
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.text.KeyboardOptions // ** ADDED import **
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+// *** ADDED imports for new Icons ***
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
+// *** END ADDED imports ***
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Person
@@ -18,6 +22,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.KeyboardType // ** ADDED import **
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -30,7 +35,7 @@ import com.example.sqlitepatient3.presentation.components.ConfirmationDialog
 import com.example.sqlitepatient3.presentation.components.DatePickerDialog
 import com.example.sqlitepatient3.presentation.components.LoadingScaffold
 import com.example.sqlitepatient3.presentation.components.SectionTitle
-import kotlinx.coroutines.launch // ** ADDED import **
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -53,10 +58,7 @@ fun AddEditEventScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
-
-    // Observe the new saveMessage state
     val saveMessage by viewModel.saveMessage.collectAsState()
-
     val selectedPatient by viewModel.selectedPatient.collectAsState()
     val eventType by viewModel.eventType.collectAsState()
     val visitType by viewModel.visitType.collectAsState()
@@ -82,7 +84,6 @@ fun AddEditEventScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // ** ADDED SnackbarHostState and CoroutineScope **
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -91,20 +92,11 @@ fun AddEditEventScreen(
         saveMessage?.let { message ->
             scope.launch {
                 snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
-                // Clear the message in the ViewModel *after* showing Snackbar
                 viewModel.clearSaveMessage()
-                // Call navigation callback *after* Snackbar logic
                 onSaveComplete()
             }
         }
     }
-
-    // REMOVED the LaunchedEffect that observed saveSuccess
-    // LaunchedEffect(saveSuccess) {
-    //     if (saveSuccess) {
-    //         onSaveComplete()
-    //     }
-    // }
 
     // Request focus for the patient search field when it's initially shown
     LaunchedEffect(selectedPatient) {
@@ -114,9 +106,8 @@ fun AddEditEventScreen(
         }
     }
 
-
     // Handle loading state
-    if (isLoading && eventId != null) { // Adjusted loading check
+    if (isLoading && eventId != null) {
         LoadingScaffold(
             title = if (eventId == null) "Schedule Event" else "Edit Event",
             onNavigateUp = onNavigateUp
@@ -144,7 +135,6 @@ fun AddEditEventScreen(
                 }
             )
         },
-        // ** ADDED SnackbarHost to the Scaffold **
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
         Column(
@@ -422,20 +412,51 @@ fun AddEditEventScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Event Duration
-            OutlinedTextField(
-                value = eventMinutes.toString(),
-                onValueChange = {
-                    val newValue = it.toIntOrNull() ?: 0
-                    viewModel.setEventMinutes(newValue)
-                },
-                label = { Text("Duration (minutes)") },
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+            // --- MODIFIED Event Duration Section ---
+            Text( // Optional Label above the Row
+                text = "Duration",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center // Center items in the row
+            ) {
+                // Decrement Button
+                IconButton(onClick = { viewModel.decrementDurationRandomly() }) {
+                    Icon(Icons.Default.Remove, contentDescription = "Decrease Duration")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp)) // Space between button and text field
+
+                // Event Duration Text Field (Narrowed)
+                OutlinedTextField(
+                    value = eventMinutes.toString(),
+                    onValueChange = {
+                        // Allow direct editing, ensure it's a valid number >= 1
+                        val newValue = it.filter { char -> char.isDigit() }.toIntOrNull() ?: 1
+                        viewModel.setEventMinutes(newValue)
+                    },
+                    label = { Text("Minutes") }, // Simplified label
+                    keyboardOptions = KeyboardOptions( // Use imported KeyboardOptions
+                        keyboardType = KeyboardType.Number // Use imported KeyboardType
+                    ),
+                    // *** MODIFIED Modifier: Removed fillMaxWidth, added width ***
+                    modifier = Modifier.width(100.dp), // Adjust width as needed
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center) // Center text inside
+                )
+
+                Spacer(modifier = Modifier.width(8.dp)) // Space between text field and button
+
+                // Increment Button
+                IconButton(onClick = { viewModel.incrementDurationRandomly() }) {
+                    Icon(Icons.Default.Add, contentDescription = "Increase Duration")
+                }
+            }
+            // --- END MODIFIED Event Duration Section ---
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -491,7 +512,6 @@ fun AddEditEventScreen(
             Button(
                 onClick = { viewModel.saveEvent() },
                 modifier = Modifier.fillMaxWidth(),
-                // Enable button only if not saving AND a patient is selected
                 enabled = !isSaving && selectedPatient != null
             ) {
                 if (isSaving) {
@@ -535,4 +555,4 @@ fun AddEditEventScreen(
             onDismiss = { showCancelDialog = false }
         )
     }
-} // End AddEditEventScreen composableas
+} // End AddEditEventScreen composable
