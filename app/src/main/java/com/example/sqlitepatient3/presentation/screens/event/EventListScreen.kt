@@ -217,21 +217,21 @@ fun EventListItem(
     // Calculate next follow-up date
     val nextFollowUpDate = itemData.event.calculateNextFollowUpDate()
 
-    Row(
+    // Use a Column to stack the name/date line and the notes line vertically
+    Column(
         modifier = modifier
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp), // Use consistent padding
-        verticalAlignment = Alignment.CenterVertically // Align items vertically in the row
+            .padding(horizontal = 16.dp, vertical = 12.dp), // Consistent padding
     ) {
-        // Use a Row for the main line of text to allow wrapping if needed
+        // Row for Name, Facility Code, Date, and Follow-up Date
         Row(
-            modifier = Modifier.weight(1f), // Allow this Row to take available space
-            verticalAlignment = Alignment.CenterVertically // Align text elements vertically
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             // Display Last Name, First Name
             Text(
                 text = "${itemData.patientLastName}, ${itemData.patientFirstName}",
-                style = MaterialTheme.typography.bodyLarge, // Slightly larger text for name
+                style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false) // Prevent name taking all space
@@ -239,44 +239,56 @@ fun EventListItem(
             // Display Facility Code if available
             itemData.facilityCode?.takeIf { it.isNotBlank() }?.let { code ->
                 Text(
-                    text = "($code)", // Display code in parentheses
-                    style = MaterialTheme.typography.bodyLarge, // Match name style
+                    text = "($code)",
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    modifier = Modifier.padding(start = 4.dp, end = 8.dp) // Add padding around code
+                    modifier = Modifier.padding(start = 4.dp, end = 8.dp)
                 )
             }
             // Display Event Date (mm/dd)
             Text(
                 text = itemData.event.eventDateTime.format(dateFormatter),
-                style = MaterialTheme.typography.bodyLarge, // Match name style
-                color = MaterialTheme.colorScheme.primary, // Highlight date color
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
-                modifier = Modifier.padding(end = 8.dp) // Add padding after date
+                modifier = Modifier.padding(end = 8.dp)
             )
 
             // Display Next Follow-up Date if it exists
             nextFollowUpDate?.let { nextDate ->
                 Text(
-                    text = "-> ${nextDate.format(dateFormatter)}", // Arrow indicates next date
-                    style = MaterialTheme.typography.bodyLarge, // Match name style
-                    color = MaterialTheme.colorScheme.secondary, // Different color for follow-up
+                    text = "-> ${nextDate.format(dateFormatter)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.secondary,
                     maxLines = 1
                 )
             }
-        } // End of main info Row
 
-        // Status Chip is removed
-        // StatusChip(itemData.event.status)
+            Spacer(modifier = Modifier.weight(1f)) // Push chevron icon to the end
 
-        // Chevron icon remains at the end
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = "View details",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 8.dp) // Add padding before chevron
-        )
-    }
+            // Chevron icon
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "View details",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        } // End of Name/Date/Follow-up Row
+
+        // Add Text composable for the notes below the name/date row
+        // Only display if noteText is not null or blank
+        if (!itemData.event.noteText.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp)) // Add some space between the lines
+            Text(
+                text = itemData.event.noteText, // Display the notes
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, // Use a slightly dimmer color for notes
+                maxLines = 1, // Ensure it only takes one line
+                overflow = TextOverflow.Ellipsis // Add "..." if the text is too long
+            )
+        }
+    } // End of Column
 }
 
 

@@ -1,39 +1,34 @@
 package com.example.sqlitepatient3.presentation.navigation
 
-import android.app.Activity // Added import
+import android.app.Activity // Keep this import if you might use activity?.finish()
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext // Added import
+import androidx.compose.ui.platform.LocalContext // Keep this import if you might use activity?.finish()
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.activity.compose.LocalActivity
 import com.example.sqlitepatient3.presentation.screens.database.BackupRestoreScreen
 import com.example.sqlitepatient3.presentation.screens.database.DatabaseInfoScreen
 import com.example.sqlitepatient3.presentation.screens.event.AddEditEventScreen
+import com.example.sqlitepatient3.presentation.screens.event.EventDetailScreen // <<<--- ADDED IMPORT
 import com.example.sqlitepatient3.presentation.screens.event.EventListScreen
 import com.example.sqlitepatient3.presentation.screens.home.HomeScreen
 import com.example.sqlitepatient3.presentation.screens.importexport.DataExportScreen
 import com.example.sqlitepatient3.presentation.screens.importexport.DataImportScreen
 import com.example.sqlitepatient3.presentation.screens.importexport.ImportExportScreen
 import com.example.sqlitepatient3.presentation.screens.patient.AddEditPatientScreen
-import com.example.sqlitepatient3.presentation.screens.patient.PatientListScreen
 import com.example.sqlitepatient3.presentation.screens.patient.PatientDetailScreen
-import androidx.compose.material3.Text
-import androidx.compose.material3.Button
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.unit.dp
+import com.example.sqlitepatient3.presentation.screens.patient.PatientListScreen
 
 @Composable
 fun AppNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    // Set the start destination
-    startDestination: String = ScreenRoute.AddEditEvent.route // Changed from ScreenRoute.Home.route
+    startDestination: String = ScreenRoute.Home.route // You can change startDestination back if needed
 ) {
     NavHost(
         modifier = modifier,
@@ -66,25 +61,19 @@ fun AppNavHost(
             route = ScreenRoute.PatientDetail.route,
             arguments = listOf(navArgument("patientId") { type = NavType.LongType })
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.getLong("patientId") ?: 0
+            // Note: PatientDetailScreen fetches its own data using the ID
             PatientDetailScreen(
                 onNavigateUp = { navController.navigateUp() },
                 onEditPatient = { navPatientId -> navController.navigate(ScreenRoute.AddEditPatient.createRoute(navPatientId)) },
                 onAddEvent = { navPatientId -> navController.navigate(ScreenRoute.AddEditEvent.createRoute(patientId = navPatientId)) },
-                onViewAllEvents = { navPatientId -> navController.navigate(ScreenRoute.EventList.route /* + filter by patient? */) }, // Consider how to filter EventList
-                onViewDiagnoses = { /* TODO: Navigate to diagnoses screen */ }
+                onViewAllEvents = { navPatientId -> navController.navigate(ScreenRoute.EventList.route /* + filter? */) },
+                onViewDiagnoses = { /* TODO: Navigate to diagnoses */ }
             )
         }
 
         composable(
             route = ScreenRoute.AddEditPatient.route,
-            arguments = listOf(
-                navArgument("patientId") {
-                    type = NavType.LongType
-                    defaultValue = -1L  // -1 indicates new patient
-                    nullable = false
-                }
-            )
+            arguments = listOf(navArgument("patientId") { type = NavType.LongType; defaultValue = -1L })
         ) { backStackEntry ->
             val patientId = backStackEntry.arguments?.getLong("patientId") ?: -1L
             AddEditPatientScreen(
@@ -135,53 +124,31 @@ fun AppNavHost(
 
         // Event Screens
         composable(
-            route = ScreenRoute.AddEditEvent.route, // This route definition handles the arguments
+            route = ScreenRoute.AddEditEvent.route,
             arguments = listOf(
-                navArgument("eventId") {
-                    type = NavType.LongType
-                    defaultValue = -1L // Default for adding a new event
-                    nullable = false
-                },
-                navArgument("patientId") {
-                    type = NavType.LongType
-                    defaultValue = -1L // Default for adding a new event without a pre-selected patient
-                    nullable = false
-                }
+                navArgument("eventId") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("patientId") { type = NavType.LongType; defaultValue = -1L }
             )
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getLong("eventId") ?: -1L
             val patientId = backStackEntry.arguments?.getLong("patientId") ?: -1L
-            // val activity = (LocalContext.current as? Activity) // Get activity instance if needed for finish()
+            val activity = LocalActivity.current
 
             AddEditEventScreen(
                 eventId = if (eventId != -1L) eventId else null,
                 patientId = if (patientId != -1L) patientId else null,
                 onNavigateUp = {
-                    // *** CORRECTED NAVIGATION LOGIC ***
-                    // Check if this is the start destination (no previous screen)
                     if (navController.previousBackStackEntry == null) {
-                        // Option 1: Navigate explicitly to Home screen
                         navController.navigate(ScreenRoute.Home.route) {
-                            // Pop AddEditEvent off the stack so back button on Home exits
                             popUpTo(ScreenRoute.AddEditEvent.route) { inclusive = true }
-                            // Avoid multiple instances of Home screen
                             launchSingleTop = true
                         }
-                        // Option 2: Finish the activity (close the app)
-                        // activity?.finish()
+                        // activity?.finish() // Alternative: close app
                     } else {
-                        // Standard navigate up if not the start destination
                         navController.navigateUp()
                     }
-                    // *** END CORRECTION ***
                 },
-                onSaveComplete = {
-                    // Navigate up after saving. If AddEditEvent was the startDestination,
-                    // this might now go to Home if the onNavigateUp logic was changed to go there.
-                    // Or it might exit if onNavigateUp finishes the activity.
-                    // If AddEditEvent was NOT the startDestination, this navigates to the previous screen.
-                    navController.navigateUp()
-                }
+                onSaveComplete = { navController.navigateUp() }
             )
         }
 
@@ -193,24 +160,20 @@ fun AppNavHost(
             )
         }
 
-        // Event Detail Route
+        // --- MODIFIED Event Detail Route ---
         composable(
             route = ScreenRoute.EventDetail.route,
             arguments = listOf(navArgument("eventId") { type = NavType.LongType })
         ) { backStackEntry ->
-            val eventId = backStackEntry.arguments?.getLong("eventId") ?: 0
-            // TODO: Implement EventDetailScreen using eventId
-            // For now, just shows placeholder text and navigates back
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Event Detail Screen for Event ID: $eventId (Not Implemented)")
-                Button(onClick = { navController.navigateUp() }) {
-                    Text("Back")
-                }
-            }
-//            LaunchedEffect(Unit) {
-//                navController.navigateUp() // Or implement the actual screen
-//            }
+            // EventDetailScreen now uses its ViewModel which gets the ID from SavedStateHandle
+            EventDetailScreen(
+                onNavigateUp = { navController.navigateUp() },
+                onEditEvent = { navEventId -> navController.navigate(ScreenRoute.AddEditEvent.createRoute(eventId = navEventId)) },
+                // Navigate to patient detail when patient card is clicked
+                onPatientClick = { navPatientId -> navController.navigate(ScreenRoute.PatientDetail.createRoute(navPatientId)) }
+            )
         }
+        // --- END MODIFIED Event Detail Route ---
 
         // Settings Screen
         // TODO: Add settings screen composable
