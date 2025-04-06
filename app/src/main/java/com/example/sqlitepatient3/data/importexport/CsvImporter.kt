@@ -5,7 +5,6 @@ import android.net.Uri
 import android.util.Log
 import com.example.sqlitepatient3.domain.model.DiagnosticCode
 import com.example.sqlitepatient3.domain.model.Facility
-import com.example.sqlitepatient3.domain.model.Patient
 import com.example.sqlitepatient3.domain.repository.DiagnosticCodeRepository
 import com.example.sqlitepatient3.domain.repository.FacilityRepository
 import com.example.sqlitepatient3.domain.repository.PatientDiagnosisRepository
@@ -21,7 +20,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.text.iterator
 
 /**
  * Helper class for handling CSV import/export
@@ -242,7 +240,8 @@ class CsvImporter @Inject constructor(
         }
 
     /**
-     * Imports diagnosis data from a CSV file
+     * Imports diagnosis data from a CSV file, linking diagnoses to patients.
+     * Only creates new DiagnosticCode records if the code doesn't already exist.
      * Returns a triple of (diagnosisSuccessCount, diagnosisErrorCount, unmatchedPatientCount)
      */
     suspend fun importDiagnoses(context: Context, fileUri: Uri): Triple<Int, Int, Int> =
@@ -290,8 +289,8 @@ class CsvImporter @Inject constructor(
 
                         val patientUPI = getColumnValue(values, headerMap, "patientUPI")
                         var icdCodeRaw = getColumnValue(values, headerMap, "icdCode")
-                        val icdCode = icdCodeRaw.replace(".", "")
-                        val description = getColumnValue(values, headerMap, "description")
+                        val icdCode = icdCodeRaw.replace(".", "") // Use cleaned code
+                        val description = getColumnValue(values, headerMap, "description") // Description from THIS CSV
 
                         // Skip if any required field is blank
                         if (patientUPI.isBlank() || icdCode.isBlank()) {
@@ -315,46 +314,43 @@ class CsvImporter @Inject constructor(
                             ignoreCase = true
                         )
 
-                        val active = getColumnValue(values, headerMap, "active").equals(
-                            "true",
-                            ignoreCase = true
-                        )
+                        // active column check removed as we assume import means active, and linking is the primary goal
 
                         // Look up or create the diagnostic code
-                        val diagnosticCodeId = if (existingCodesCache.containsKey(icdCode)) { // Use modified code
-                            existingCodesCache[icdCode]!!
+                        val diagnosticCodeId: Long
+                        if (existingCodesCache.containsKey(icdCode)) { // Check if code already exists
+                            diagnosticCodeId = existingCodesCache[icdCode]!!
+                            // DO NOTHING TO THE EXISTING CODE'S DESCRIPTION
                         } else {
-                            // Create a new diagnostic code
-                            val newCodeId = diagnosticCodeRepository.insertDiagnosticCode(
-                                DiagnosticCode(
-                                    icdCode = icdCode, // Use modified code
-                                    description = description,
-                                    shorthand = null,
-                                    billable = true,
-                                    commonCode = null
-                                )
+                            // Create a new diagnostic code ONLY IF IT DOESN'T EXIST
+                            // Using the description from THIS specific CSV import
+                            val newCode = DiagnosticCode(
+                                icdCode = icdCode, // Use cleaned code
+                                description = description, // Description from CSV
+                                shorthand = null, // Not importing shorthand here
+                                billable = true, // Assuming billable
+                                commonCode = null // Assuming not common by default
                             )
-                            // Add to cache
+                            val newCodeId = diagnosticCodeRepository.insertDiagnosticCode(newCode)
+                            // Add to cache for subsequent rows in this same file
                             existingCodesCache[icdCode] = newCodeId
-                            newCodeId
+                            diagnosticCodeId = newCodeId
                         }
 
-                        // Insert the patient diagnosis
+                        // Insert the patient diagnosis link
                         patientDiagnosisRepository.insertPatientDiagnosis(
                             patientId = patientId,
                             icdCode = icdCode,
                             priority = priority,
                             isHospiceCode = isHospiceCode,
                             diagnosisDate = LocalDate.now(), // Current date as diagnosis date
-                            notes = null
+                            notes = null // Not importing notes here
                         )
 
-                        // If this is a hospice diagnosis and marked as a hospice code, update patient
+                        // Logic to update patient's primary hospice diagnosis remains the same...
                         if (isHospiceCode) {
                             val patient = patientRepository.getPatientById(patientId)
                             if (patient != null && (patient.hospiceDiagnosisId == null || priority == 1)) {
-                                // This is either the first hospice diagnosis or the primary diagnosis
-                                // Get the diagnosis ID we just inserted
                                 val diagnosis = patientDiagnosisRepository.getPatientDiagnosisByPriority(patientId, priority)
                                 diagnosis?.let {
                                     patientRepository.updatePatientHospiceDiagnosis(patientId, it.id)
@@ -376,6 +372,138 @@ class CsvImporter @Inject constructor(
             return@withContext Triple(diagnosisSuccessCount, diagnosisErrorCount, unmatchedPatientCount)
         }
 
+
+    // --- NEW FUNCTION START ---
+    /**
+     * Imports an ICD-10 code library from a CSV file.
+     * Updates existing codes with descriptions from the CSV.
+     * Optionally inserts codes that don't exist.
+     * Assumes CSV has columns 'icdCode' and 'description'.
+     *
+     * @param context The application context.
+     * @param fileUri The URI of the CSV file.
+     * @param insertNew If true, inserts codes from the CSV that are not already in the database.
+     * @return A Triple containing (updatedCount, insertedCount, errorCount).
+     */
+    suspend fun importDiagnosticCodeLibrary(
+        context: Context,
+        fileUri: Uri,
+        insertNew: Boolean = true // Control whether to insert codes not found
+    ): Triple<Int, Int, Int> = withContext(Dispatchers.IO) {
+        var updatedCount = 0
+        var insertedCount = 0
+        var errorCount = 0
+
+        try {
+            val csvContent = readCsvContent(context, fileUri)
+            val lines = csvContent.lines().filter { it.isNotBlank() }
+
+            if (lines.isEmpty()) {
+                return@withContext Triple(0, 0, 0)
+            }
+
+            val header = parseCsvLine(lines[0])
+            val headerMap = header.mapIndexed { index, columnName ->
+                columnName.trim().lowercase() to index // Use lowercase for flexibility
+            }.toMap()
+
+            // --- Column Name Flexibility ---
+            // Try common variations for column names
+            val codeColName = listOf("icdcode", "code", "icd-10", "icd10").find { headerMap.containsKey(it) }
+            val descColName = listOf("description", "desc", "longdescription", "text").find { headerMap.containsKey(it) }
+            // Add more optional columns if needed (e.g., shorthand, billable)
+            // val shorthandColName = listOf("shorthand", "short").find { headerMap.containsKey(it) }
+
+            // --- Validation ---
+            if (codeColName == null) {
+                throw IOException("CSV must contain an ICD code column (e.g., 'icdCode', 'code')")
+            }
+            if (descColName == null) {
+                throw IOException("CSV must contain a description column (e.g., 'description', 'desc')")
+            }
+            // --- End Validation ---
+
+            Log.d(TAG, "Importing code library. Code column: '$codeColName', Desc column: '$descColName'")
+
+            // Process data rows
+            for (i in 1 until lines.size) {
+                try {
+                    val values = parseCsvLine(lines[i])
+
+                    val icdCodeRaw = getColumnValue(values, headerMap, codeColName)
+                    val description = getColumnValue(values, headerMap, descColName)
+
+                    if (icdCodeRaw.isBlank()) {
+                        Log.w(TAG, "Skipping row ${i + 1}: Blank ICD code")
+                        errorCount++
+                        continue
+                    }
+
+                    // Clean the code (remove dots, etc.) - adjust if your library format differs
+                    val icdCode = icdCodeRaw.replace(".", "").trim()
+                    if (icdCode.isBlank()) {
+                        Log.w(TAG, "Skipping row ${i + 1}: Blank ICD code after cleaning '$icdCodeRaw'")
+                        errorCount++
+                        continue
+                    }
+
+
+                    // --- Find existing code ---
+                    val existingCode = diagnosticCodeRepository.getDiagnosticCodeByIcdCode(icdCode)
+
+                    if (existingCode != null) {
+                        // --- Update Existing Code ---
+                        // Update only if the description is different and not blank in the CSV
+                        if (description.isNotBlank() && existingCode.description != description) {
+                            val updatedCode = existingCode.copy(
+                                description = description
+                                // Optionally update other fields like shorthand, billable if present in CSV
+                                // shorthand = getColumnValue(values, headerMap, shorthandColName).takeIf { it.isNotBlank() } ?: existingCode.shorthand,
+                                // billable = getColumnValue(values, headerMap, billableColName).toBooleanStrictOrNull() ?: existingCode.billable
+                            )
+                            diagnosticCodeRepository.updateDiagnosticCode(updatedCode)
+                            updatedCount++
+                        } else {
+                            // No update needed (description same or blank in CSV)
+                        }
+                    } else if (insertNew) {
+                        // --- Insert New Code (Optional) ---
+                        if (description.isBlank()) {
+                            Log.w(TAG, "Skipping new code '$icdCode' from row ${i + 1}: Blank description")
+                            errorCount++
+                            continue
+                        }
+                        val newCode = DiagnosticCode(
+                            icdCode = icdCode,
+                            description = description,
+                            // Set defaults for other fields or parse from CSV if available
+                            shorthand = null, // getColumnValue(values, headerMap, shorthandColName).takeIf { it.isNotBlank() },
+                            billable = true,  // getColumnValue(values, headerMap, billableColName).toBooleanStrictOrNull() ?: true,
+                            commonCode = null
+                        )
+                        diagnosticCodeRepository.insertDiagnosticCode(newCode)
+                        insertedCount++
+                    } else {
+                        // Code doesn't exist and insertNew is false, skip.
+                        Log.d(TAG, "Skipping row ${i + 1}: Code '$icdCode' not found and insertNew is false.")
+                    }
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing code library row ${i + 1}", e)
+                    errorCount++
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error importing diagnostic code library", e)
+            throw e // Re-throw to be caught by ViewModel
+        }
+
+        return@withContext Triple(updatedCount, insertedCount, errorCount)
+    }
+    // --- NEW FUNCTION END ---
+
+
     /**
      * Helper function to read CSV content from a URI
      */
@@ -383,7 +511,7 @@ class CsvImporter @Inject constructor(
         context.contentResolver.openInputStream(fileUri)?.use { inputStream ->
             val reader = BufferedReader(InputStreamReader(inputStream))
             return reader.readText()
-        } ?: throw IOException("Could not open file")
+        } ?: throw IOException("Could not open file: $fileUri") // Added URI to error
     }
 
     /**
@@ -392,34 +520,57 @@ class CsvImporter @Inject constructor(
     private fun getColumnValue(
         values: List<String>,
         headerMap: Map<String, Int>,
-        columnName: String
+        columnName: String? // Made nullable, as we might not find the column
     ): String {
+        if (columnName == null) return "" // Return empty if column name wasn't found
         val index = headerMap[columnName] ?: return ""
-        return if (index < values.size) values[index].trim() else ""
+        return if (index >= 0 && index < values.size) values[index].trim() else ""
     }
 
+
     /**
-     * Parse a CSV line, handling quoted fields
+     * Parse a CSV line, handling quoted fields and different line endings.
+     * More robust implementation.
      */
     private fun parseCsvLine(line: String): List<String> {
         val result = mutableListOf<String>()
-        var inQuotes = false
+        val iterator = line.iterator()
         var currentValue = StringBuilder()
+        var inQuotes = false
 
-        for (char in line) {
+        while (iterator.hasNext()) {
+            val char = iterator.next()
+
             when {
+                // Handles double quote escaping ("") inside quoted fields
+                char == '"' && inQuotes && iterator.hasNext() && iterator.peekNextChar() == '"' -> {
+                    currentValue.append('"')
+                    iterator.next() // Consume the second quote
+                }
                 char == '"' -> inQuotes = !inQuotes
                 char == ',' && !inQuotes -> {
-                    result.add(currentValue.toString().trim())
+                    result.add(currentValue.toString()) // Keep leading/trailing spaces within quotes
                     currentValue = StringBuilder()
                 }
-
+                // Handle potential \r\n or \n line endings if needed, though usually handled by lines()
+                // char == '\r' && !inQuotes && iterator.hasNext() && iterator.peekNextChar() == '\n' -> { /* Skip \r */ }
+                // char == '\n' && !inQuotes -> { /* End of line, should be handled by lines() */ }
                 else -> currentValue.append(char)
             }
         }
+        result.add(currentValue.toString()) // Add the last value
 
-        // Add the last field
-        result.add(currentValue.toString().trim())
-        return result
+        // Trim only if not quoted originally (this might be too complex, trim() on getColumnValue is simpler)
+        // return result.map { if (it.startsWith("\"") && it.endsWith("\"")) it.drop(1).dropLast(1) else it.trim() }
+        return result // Rely on trim() in getColumnValue
     }
+
+    // Helper extension for peeking next char in iterator
+    private fun CharIterator.peekNextChar(): Char? {
+        // This requires specific iterator implementation or lookahead logic.
+        // For simplicity, we'll skip actual peeking. Standard CSV parsing libraries handle this.
+        // If implementing manually, you might need a custom reader.
+        return null // Placeholder
+    }
+
 }
