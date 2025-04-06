@@ -69,7 +69,11 @@ fun AddEditEventScreen(
     val followUpRecurrence by viewModel.followUpRecurrence.collectAsState()
     val hospDischargeDate by viewModel.hospDischargeDate.collectAsState()
     val patientSearchQuery by viewModel.patientSearchQuery.collectAsState()
+    // *** MODIFIED: Use PatientSearchResultItem list ***
     val filteredPatients by viewModel.filteredPatients.collectAsState()
+    // *** ADDED: Collect facility code for selected patient ***
+    val selectedPatientFacilityCode by viewModel.selectedPatientFacilityCode.collectAsState()
+
 
     // State variables for UI components
     var showDatePicker by remember { mutableStateOf(false) }
@@ -180,8 +184,15 @@ fun AddEditEventScreen(
             // Patient Selection with Search-as-you-type
             Column(modifier = Modifier.fillMaxWidth()) {
                 if (selectedPatient != null) {
+                    // *** MODIFIED: Display selected patient with facility code ***
+                    val displayText = buildString {
+                        append("${selectedPatient!!.lastName}, ${selectedPatient!!.firstName}")
+                        selectedPatientFacilityCode?.takeIf { it.isNotBlank() }?.let { code ->
+                            append(" ($code)")
+                        }
+                    }
                     OutlinedTextField(
-                        value = "${selectedPatient!!.lastName}, ${selectedPatient!!.firstName}",
+                        value = displayText,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Selected Patient*") },
@@ -194,6 +205,7 @@ fun AddEditEventScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
+                    // *** END MODIFIED ***
                 } else {
                     OutlinedTextField(
                         value = patientSearchQuery,
@@ -216,6 +228,7 @@ fun AddEditEventScreen(
                         singleLine = true
                     )
 
+                    // *** MODIFIED: Use PatientSearchResultItem ***
                     if (showPatientResults && patientSearchQuery.isNotBlank()) {
                         Card(
                             modifier = Modifier
@@ -232,21 +245,29 @@ fun AddEditEventScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 } else {
-                                    filteredPatients.forEach { patient ->
+                                    // Iterate over PatientSearchResultItem
+                                    filteredPatients.forEach { item ->
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clickable {
-                                                    viewModel.setPatientId(patient.id)
-                                                    viewModel.setPatientSearchQuery("")
+                                                    viewModel.setPatientId(item.patient.id) // Set patient ID
+                                                    viewModel.setPatientSearchQuery("") // Clear search
                                                     showPatientResults = false
                                                     keyboardController?.hide()
                                                 }
                                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
+                                            // Display Name and Facility Code
+                                            val patientText = buildString {
+                                                append("${item.patient.lastName}, ${item.patient.firstName}")
+                                                item.facilityCode?.takeIf { it.isNotBlank() }?.let { code ->
+                                                    append(" ($code)")
+                                                }
+                                            }
                                             Text(
-                                                text = "${patient.lastName}, ${patient.firstName}",
+                                                text = patientText,
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
@@ -258,104 +279,165 @@ fun AddEditEventScreen(
                             }
                         }
                     }
+                    // *** END MODIFIED ***
                 }
             }
 
+            // --- Event Type, Date, F/U Row ---
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Event Type Selection
-            Box(modifier = Modifier.fillMaxWidth()) {
-                ExposedDropdownMenuBox(
-                    expanded = eventTypesDropdownExpanded,
-                    onExpandedChange = { eventTypesDropdownExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = eventType.toString(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Event Type*") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = eventTypesDropdownExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = eventTypesDropdownExpanded,
-                        onDismissRequest = { eventTypesDropdownExpanded = false }
-                    ) {
-                        EventType.values().forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.toString()) },
-                                onClick = {
-                                    viewModel.setEventType(type)
-                                    eventTypesDropdownExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Visit Type & Location (Conditional)
-            if (eventType == EventType.FACE_TO_FACE) {
-                // Visit Type
-                Box(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), // Space between items
+                verticalAlignment = Alignment.Top // Align items to top in case labels wrap
+            ) {
+                // Event Type Selection
+                Box(modifier = Modifier.weight(1f)) { // Use weight
                     ExposedDropdownMenuBox(
-                        expanded = visitTypeDropdownExpanded,
-                        onExpandedChange = { visitTypeDropdownExpanded = it }
+                        expanded = eventTypesDropdownExpanded,
+                        onExpandedChange = { eventTypesDropdownExpanded = it }
                     ) {
                         OutlinedTextField(
-                            value = visitType.toString(),
+                            value = eventType.toString(),
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Visit Type") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = visitTypeDropdownExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                            label = { Text("Event Type*") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = eventTypesDropdownExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(), // Fill width within weight
+                            singleLine = true // Try to keep label on one line
                         )
                         ExposedDropdownMenu(
-                            expanded = visitTypeDropdownExpanded,
-                            onDismissRequest = { visitTypeDropdownExpanded = false }
+                            expanded = eventTypesDropdownExpanded,
+                            onDismissRequest = { eventTypesDropdownExpanded = false }
                         ) {
-                            VisitType.values().forEach { type ->
+                            EventType.values().forEach { type ->
                                 DropdownMenuItem(
                                     text = { Text(type.toString()) },
                                     onClick = {
-                                        viewModel.setVisitType(type)
-                                        visitTypeDropdownExpanded = false
+                                        viewModel.setEventType(type)
+                                        eventTypesDropdownExpanded = false
                                     }
                                 )
                             }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
 
-                // Visit Location
-                Box(modifier = Modifier.fillMaxWidth()) {
+                // Date Selection
+                OutlinedTextField(
+                    value = eventDateTime.toLocalDate().format(DateTimeFormatter.ofPattern("MM/dd/yyyy")),
+                    onValueChange = { },
+                    label = { Text("Date*") },
+                    readOnly = true,
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(Icons.Default.DateRange, "Select Date")
+                        }
+                    },
+                    modifier = Modifier.weight(1f), // Use weight
+                    singleLine = true
+                )
+
+                // Follow-up Recurrence
+                Box(modifier = Modifier.weight(1f)) { // Use weight
                     ExposedDropdownMenuBox(
-                        expanded = visitLocationDropdownExpanded,
-                        onExpandedChange = { visitLocationDropdownExpanded = it }
+                        expanded = followUpRecurrenceDropdownExpanded,
+                        onExpandedChange = { followUpRecurrenceDropdownExpanded = it }
                     ) {
                         OutlinedTextField(
-                            value = visitLocation.toString(),
+                            value = followUpRecurrence.toString(),
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Visit Location") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = visitLocationDropdownExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                            label = { Text("F/U") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = followUpRecurrenceDropdownExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(), // Fill width within weight
+                            singleLine = true // Try to keep label on one line
                         )
                         ExposedDropdownMenu(
-                            expanded = visitLocationDropdownExpanded,
-                            onDismissRequest = { visitLocationDropdownExpanded = false }
+                            expanded = followUpRecurrenceDropdownExpanded,
+                            onDismissRequest = { followUpRecurrenceDropdownExpanded = false }
                         ) {
-                            VisitLocation.values().forEach { location ->
+                            FollowUpRecurrence.values().forEach { recurrence ->
                                 DropdownMenuItem(
-                                    text = { Text(location.toString()) },
+                                    text = { Text(recurrence.toString()) },
                                     onClick = {
-                                        viewModel.setVisitLocation(location)
-                                        visitLocationDropdownExpanded = false
+                                        viewModel.setFollowUpRecurrence(recurrence)
+                                        followUpRecurrenceDropdownExpanded = false
                                     }
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+            // --- END Event Type, Date, F/U Row ---
+
+
+            Spacer(modifier = Modifier.height(8.dp)) // Keep one spacer for separation
+
+            // Visit Type & Location (Conditional)
+            if (eventType == EventType.FACE_TO_FACE) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    // Visit Type
+                    Box(modifier = Modifier.weight(1f)) {
+                        ExposedDropdownMenuBox(
+                            expanded = visitTypeDropdownExpanded,
+                            onExpandedChange = { visitTypeDropdownExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = visitType.toString(),
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Visit Type") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = visitTypeDropdownExpanded) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = visitTypeDropdownExpanded,
+                                onDismissRequest = { visitTypeDropdownExpanded = false }
+                            ) {
+                                VisitType.values().forEach { type ->
+                                    DropdownMenuItem(
+                                        text = { Text(type.toString()) },
+                                        onClick = {
+                                            viewModel.setVisitType(type)
+                                            visitTypeDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    // Visit Location
+                    Box(modifier = Modifier.weight(1f)) {
+                        ExposedDropdownMenuBox(
+                            expanded = visitLocationDropdownExpanded,
+                            onExpandedChange = { visitLocationDropdownExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = visitLocation.toString(),
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Visit Location") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = visitLocationDropdownExpanded) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = visitLocationDropdownExpanded,
+                                onDismissRequest = { visitLocationDropdownExpanded = false }
+                            ) {
+                                VisitLocation.values().forEach { location ->
+                                    DropdownMenuItem(
+                                        text = { Text(location.toString()) },
+                                        onClick = {
+                                            viewModel.setVisitLocation(location)
+                                            visitLocationDropdownExpanded = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -394,25 +476,8 @@ fun AddEditEventScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Date Selection
-            OutlinedTextField(
-                value = eventDateTime.toLocalDate().format(DateTimeFormatter.ofPattern("MM/dd/yyyy")),
-                onValueChange = { },
-                label = { Text("Date*") },
-                readOnly = true,
-                leadingIcon = { Icon(Icons.Default.DateRange, null) },
-                trailingIcon = {
-                    IconButton(onClick = { showDatePicker = true }) {
-                        Icon(Icons.Default.DateRange, "Select Date")
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // --- MODIFIED Event Duration Section ---
+            // --- Event Duration Section ---
             Text( // Optional Label above the Row
                 text = "Duration",
                 style = MaterialTheme.typography.bodySmall,
@@ -422,16 +487,14 @@ fun AddEditEventScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center // Center items in the row
+                horizontalArrangement = Arrangement.SpaceEvenly // Keep this arrangement
             ) {
                 // Decrement Button
                 IconButton(onClick = { viewModel.decrementDurationRandomly() }) {
                     Icon(Icons.Default.Remove, contentDescription = "Decrease Duration")
                 }
 
-                Spacer(modifier = Modifier.width(8.dp)) // Space between button and text field
-
-                // Event Duration Text Field (Narrowed)
+                // Event Duration Text Field
                 OutlinedTextField(
                     value = eventMinutes.toString(),
                     onValueChange = {
@@ -439,59 +502,24 @@ fun AddEditEventScreen(
                         val newValue = it.filter { char -> char.isDigit() }.toIntOrNull() ?: 1
                         viewModel.setEventMinutes(newValue)
                     },
-                    label = { Text("Minutes") }, // Simplified label
+                    label = { Text("Min") },
                     keyboardOptions = KeyboardOptions( // Use imported KeyboardOptions
                         keyboardType = KeyboardType.Number // Use imported KeyboardType
                     ),
-                    // *** MODIFIED Modifier: Removed fillMaxWidth, added width ***
-                    modifier = Modifier.width(100.dp), // Adjust width as needed
+                    modifier = Modifier.width(80.dp), // Keep adjusted width
                     singleLine = true,
                     textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center) // Center text inside
                 )
-
-                Spacer(modifier = Modifier.width(8.dp)) // Space between text field and button
 
                 // Increment Button
                 IconButton(onClick = { viewModel.incrementDurationRandomly() }) {
                     Icon(Icons.Default.Add, contentDescription = "Increase Duration")
                 }
             }
-            // --- END MODIFIED Event Duration Section ---
+            // --- END Event Duration Section ---
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Follow-up Recurrence
-            Box(modifier = Modifier.fillMaxWidth()) {
-                ExposedDropdownMenuBox(
-                    expanded = followUpRecurrenceDropdownExpanded,
-                    onExpandedChange = { followUpRecurrenceDropdownExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = followUpRecurrence.toString(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Follow-up Recurrence") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = followUpRecurrenceDropdownExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = followUpRecurrenceDropdownExpanded,
-                        onDismissRequest = { followUpRecurrenceDropdownExpanded = false }
-                    ) {
-                        FollowUpRecurrence.values().forEach { recurrence ->
-                            DropdownMenuItem(
-                                text = { Text(recurrence.toString()) },
-                                onClick = {
-                                    viewModel.setFollowUpRecurrence(recurrence)
-                                    followUpRecurrenceDropdownExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             // Notes Section
             SectionTitle(title = "Notes")

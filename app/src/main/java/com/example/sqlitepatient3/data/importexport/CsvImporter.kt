@@ -289,7 +289,8 @@ class CsvImporter @Inject constructor(
                         if (values.size < 3) continue // Skip empty lines
 
                         val patientUPI = getColumnValue(values, headerMap, "patientUPI")
-                        val icdCode = getColumnValue(values, headerMap, "icdCode")
+                        var icdCodeRaw = getColumnValue(values, headerMap, "icdCode")
+                        val icdCode = icdCodeRaw.replace(".", "")
                         val description = getColumnValue(values, headerMap, "description")
 
                         // Skip if any required field is blank
@@ -320,13 +321,13 @@ class CsvImporter @Inject constructor(
                         )
 
                         // Look up or create the diagnostic code
-                        val diagnosticCodeId = if (existingCodesCache.containsKey(icdCode)) {
+                        val diagnosticCodeId = if (existingCodesCache.containsKey(icdCode)) { // Use modified code
                             existingCodesCache[icdCode]!!
                         } else {
                             // Create a new diagnostic code
                             val newCodeId = diagnosticCodeRepository.insertDiagnosticCode(
                                 DiagnosticCode(
-                                    icdCode = icdCode,
+                                    icdCode = icdCode, // Use modified code
                                     description = description,
                                     shorthand = null,
                                     billable = true,

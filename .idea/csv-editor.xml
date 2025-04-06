@@ -3,6 +3,13 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="C:\Users\aP\AppData\Local\Google\AndroidStudio2024.3\device-explorer\Pixel 7 Pro API 33\_\sdcard\Android\data\com.example.sqlitepatient3\files\Documents\events.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="C:\Users\aP\AppData\Local\Google\AndroidStudio2024.3\device-explorer\Pixel 7 Pro API 33\_\sdcard\Download\Facilities.csv">
           <value>
             <Attribute>
@@ -25,6 +32,13 @@
           </value>
         </entry>
         <entry key="C:\Users\aP\AppData\Local\Google\AndroidStudio2024.3\device-explorer\Pixel 7 Pro API 33\_\sdcard\Download\patientdiagnoses.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="C:\Users\aP\AppData\Local\Google\AndroidStudio2024.3\device-explorer\Pixel 7 Pro API 33\_\storage\emulated\0\Android\data\com.example.sqlitepatient3\files\Documents\patients.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sqlitepatient3.domain.model.Event
 import com.example.sqlitepatient3.domain.model.EventType
+import com.example.sqlitepatient3.domain.model.Facility // ** ADDED import **
 import com.example.sqlitepatient3.domain.model.FollowUpRecurrence
 import com.example.sqlitepatient3.domain.model.Patient
 import com.example.sqlitepatient3.domain.model.VisitLocation
@@ -13,9 +14,11 @@ import com.example.sqlitepatient3.domain.usecase.event.AddEventUseCase
 import com.example.sqlitepatient3.domain.usecase.event.GetEventByIdUseCase
 import com.example.sqlitepatient3.domain.usecase.event.GetEventsByPatientUseCase // Added
 import com.example.sqlitepatient3.domain.usecase.event.UpdateEventUseCase
+import com.example.sqlitepatient3.domain.usecase.facility.GetAllFacilitiesUseCase // ** ADDED import **
 import com.example.sqlitepatient3.domain.usecase.patient.GetAllPatientsUseCase
 import com.example.sqlitepatient3.domain.usecase.patient.GetPatientByIdUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi // ** ADDED import **
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -26,6 +29,13 @@ import javax.inject.Inject
 import kotlin.math.max // *** ADDED import for max function ***
 import kotlin.random.Random // *** ADDED import for Random ***
 
+// *** ADDED Data Class for Search Results ***
+data class PatientSearchResultItem(
+    val patient: Patient,
+    val facilityCode: String?
+)
+// *** END ADDED Data Class ***
+
 @HiltViewModel
 class AddEditEventViewModel @Inject constructor(
     private val getEventByIdUseCase: GetEventByIdUseCase,
@@ -33,7 +43,8 @@ class AddEditEventViewModel @Inject constructor(
     private val updateEventUseCase: UpdateEventUseCase,
     private val getAllPatientsUseCase: GetAllPatientsUseCase,
     private val getPatientByIdUseCase: GetPatientByIdUseCase,
-    private val getEventsByPatientUseCase: GetEventsByPatientUseCase, // Added
+    private val getEventsByPatientUseCase: GetEventsByPatientUseCase,
+    private val getAllFacilitiesUseCase: GetAllFacilitiesUseCase, // ** ADDED **
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -41,16 +52,31 @@ class AddEditEventViewModel @Inject constructor(
     private val _patientSearchQuery = MutableStateFlow("")
     val patientSearchQuery: StateFlow<String> = _patientSearchQuery.asStateFlow()
 
-    val filteredPatients = combine(
+    // --- MODIFIED filteredPatients flow ---
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val filteredPatients: StateFlow<List<PatientSearchResultItem>> = combine(
         getAllPatientsUseCase(),
-        _patientSearchQuery
-    ) { patients, query ->
+        getAllFacilitiesUseCase(), // ** ADDED facilities flow **
+        _patientSearchQuery.debounce(300) // Debounce search query
+    ) { patients, facilities, query ->
+        // Create a map for quick facility lookup
+        val facilityMap = facilities.associateBy { it.id }
+
+        val patientSearchItems = patients.map { patient ->
+            PatientSearchResultItem(
+                patient = patient,
+                facilityCode = patient.facilityId?.let { facilityMap[it]?.facilityCode }
+            )
+        }
+
         if (query.isBlank()) {
-            patients // Show all if query is blank (or handle differently if needed)
+            patientSearchItems // Show all if query is blank
         } else {
-            patients.filter {
-                it.firstName.contains(query, ignoreCase = true) ||
-                        it.lastName.contains(query, ignoreCase = true)
+            patientSearchItems.filter { item ->
+                item.patient.firstName.contains(query, ignoreCase = true) ||
+                        item.patient.lastName.contains(query, ignoreCase = true)
+                // Consider searching by facility code too if needed:
+                // || (item.facilityCode?.contains(query, ignoreCase = true) ?: false)
             }
         }
     }.stateIn(
@@ -58,6 +84,8 @@ class AddEditEventViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+    // --- END MODIFIED filteredPatients flow ---
+
 
     fun setPatientSearchQuery(query: String) {
         _patientSearchQuery.value = query
@@ -90,11 +118,11 @@ class AddEditEventViewModel @Inject constructor(
     private val _selectedPatient = MutableStateFlow<Patient?>(null)
     val selectedPatient: StateFlow<Patient?> = _selectedPatient.asStateFlow()
 
-    val patients = getAllPatientsUseCase().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
+    // *** ADDED StateFlow for selected patient's facility code ***
+    private val _selectedPatientFacilityCode = MutableStateFlow<String?>(null)
+    val selectedPatientFacilityCode: StateFlow<String?> = _selectedPatientFacilityCode.asStateFlow()
+    // *** END ADDED StateFlow ***
+
 
     // Form fields
     private val _eventType = MutableStateFlow(EventType.CCM)
@@ -109,7 +137,6 @@ class AddEditEventViewModel @Inject constructor(
     private val _eventDateTime = MutableStateFlow(LocalDateTime.now())
     val eventDateTime: StateFlow<LocalDateTime> = _eventDateTime.asStateFlow()
 
-    // *** MODIFIED default value from 30 to 7 ***
     private val _eventMinutes = MutableStateFlow(7)
     val eventMinutes: StateFlow<Int> = _eventMinutes.asStateFlow()
 
@@ -137,6 +164,7 @@ class AddEditEventViewModel @Inject constructor(
             try {
                 val event = getEventByIdUseCase(id)
                 if (event != null) {
+                    // *** MODIFIED: setPatientId now handles loading facility code ***
                     setPatientId(event.patientId)
                     _eventType.value = event.eventType
                     _visitType.value = event.visitType
@@ -158,26 +186,45 @@ class AddEditEventViewModel @Inject constructor(
         }
     }
 
+    // --- MODIFIED setPatientId ---
     fun setPatientId(id: Long?) {
         _patientId.value = id
         if (id != null) {
             viewModelScope.launch {
                 try {
-                    _selectedPatient.value = getPatientByIdUseCase(id)
+                    // Fetch patient
+                    val patient = getPatientByIdUseCase(id)
+                    _selectedPatient.value = patient
                     _patientSearchQuery.value = "" // Clear search query on selection
+
+                    // Fetch associated facility code
+                    if (patient?.facilityId != null) {
+                        val facilities = getAllFacilitiesUseCase().first() // Get current list
+                        val facilityMap = facilities.associateBy { it.id }
+                        _selectedPatientFacilityCode.value = facilityMap[patient.facilityId]?.facilityCode
+                    } else {
+                        _selectedPatientFacilityCode.value = null // No facility assigned
+                    }
+
                     // If event type is already TCM, check for recent discharge date
                     if (_eventType.value == EventType.TCM) {
                         checkAndSetRecentDischargeDate(id)
                     }
                 } catch (e: Exception) {
                     _errorMessage.value = "Error loading patient: ${e.localizedMessage}"
+                    _selectedPatient.value = null
+                    _selectedPatientFacilityCode.value = null
                 }
             }
         } else {
+            // Clear patient and facility code if ID is null
             _selectedPatient.value = null
+            _selectedPatientFacilityCode.value = null
             _hospDischargeDate.value = null // Clear discharge date if patient is cleared
         }
     }
+    // --- END MODIFIED setPatientId ---
+
 
     fun setEventType(type: EventType) {
         val oldType = _eventType.value
@@ -211,12 +258,15 @@ class AddEditEventViewModel @Inject constructor(
                     if (eventId == null) { // Only clear if it's a new event
                         _hospDischargeDate.value = null
                     }
+                    // If editing an existing TCM event, keep the existing _hospDischargeDate.value
+                    // It was loaded during loadEvent()
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error checking for recent discharge date: ${e.localizedMessage}"
                 if (eventId == null) {
                     _hospDischargeDate.value = null
                 }
+                // Keep existing discharge date if editing
             }
         }
     }
@@ -239,7 +289,6 @@ class AddEditEventViewModel @Inject constructor(
         _eventDateTime.value = LocalDateTime.of(date, currentTime)
     }
 
-    // *** MODIFIED to ensure minimum value when user types ***
     fun setEventMinutes(minutes: Int) {
         // Ensure minutes don't go below a reasonable minimum, e.g., 1
         _eventMinutes.value = max(1, minutes)
@@ -261,7 +310,6 @@ class AddEditEventViewModel @Inject constructor(
         _saveMessage.value = null
     }
 
-    // *** ADDED function to decrement duration randomly ***
     fun decrementDurationRandomly() {
         val decrementAmount = Random.nextInt(3, 6) // Generates 3, 4, or 5
         val currentMinutes = _eventMinutes.value
@@ -269,7 +317,6 @@ class AddEditEventViewModel @Inject constructor(
         _eventMinutes.value = max(1, currentMinutes - decrementAmount)
     }
 
-    // *** ADDED function to increment duration randomly ***
     fun incrementDurationRandomly() {
         val incrementAmount = Random.nextInt(3, 6) // Generates 3, 4, or 5
         val currentMinutes = _eventMinutes.value
@@ -318,14 +365,12 @@ class AddEditEventViewModel @Inject constructor(
                     eventDateTime = _eventDateTime.value,
                     followUpRecurrence = _followUpRecurrence.value,
                     hospDischargeDate = if (_eventType.value == EventType.TCM) _hospDischargeDate.value else null,
-                    // *** NOTE: eventBillDate calculation is complex and depends on rules.
-                    // Setting to event date for now, might need adjustment based on final logic.
-                    eventBillDate = _eventDateTime.value.toLocalDate()
+                    eventBillDate = _eventDateTime.value.toLocalDate() // Default bill date - might need adjustment
                 )
 
                 if (eventId == null) {
                     // Create new event
-                    addEventUseCase(
+                    val newEventId = addEventUseCase(
                         patientId = eventToSave.patientId,
                         eventType = eventToSave.eventType,
                         visitType = eventToSave.visitType,
@@ -334,19 +379,19 @@ class AddEditEventViewModel @Inject constructor(
                         noteText = eventToSave.noteText,
                         eventDateTime = eventToSave.eventDateTime,
                         followUpRecurrence = eventToSave.followUpRecurrence
-                    ).also { newEventId ->
-                        // If it's a TCM event, update with hospital discharge date
-                        // This requires fetching the newly inserted event to update it
-                        if (eventToSave.eventType == EventType.TCM && eventToSave.hospDischargeDate != null) {
-                            val newEvent = getEventByIdUseCase(newEventId)
-                            if (newEvent != null) {
-                                updateEventUseCase(
-                                    newEvent.copy(
-                                        hospDischargeDate = eventToSave.hospDischargeDate
-                                        // Recalculate bill date if necessary based on discharge date
-                                    )
+                    )
+
+                    // If it's a TCM event, update with hospital discharge date
+                    if (eventToSave.eventType == EventType.TCM && eventToSave.hospDischargeDate != null) {
+                        // We need the full event object to update it, including the generated ID
+                        val newEvent = getEventByIdUseCase(newEventId)
+                        if (newEvent != null) {
+                            updateEventUseCase(
+                                newEvent.copy(
+                                    hospDischargeDate = eventToSave.hospDischargeDate
+                                    // Recalculate bill date if necessary based on discharge date
                                 )
-                            }
+                            )
                         }
                     }
 
@@ -355,10 +400,10 @@ class AddEditEventViewModel @Inject constructor(
                     val existingEvent = getEventByIdUseCase(eventId)
                     if (existingEvent != null) {
                         updateEventUseCase(
+                            // Update using the form data, but preserve non-form fields
                             eventToSave.copy(
                                 createdAt = existingEvent.createdAt, // Preserve original creation timestamp
-                                // Ensure other fields are copied correctly if they aren't part of the form
-                                cptCode = existingEvent.cptCode,
+                                cptCode = existingEvent.cptCode,     // Preserve existing billing info
                                 modifier = existingEvent.modifier,
                                 status = existingEvent.status,
                                 monthlyBillingId = existingEvent.monthlyBillingId,
