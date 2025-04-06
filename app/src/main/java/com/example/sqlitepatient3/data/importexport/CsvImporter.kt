@@ -294,7 +294,7 @@ class CsvImporter @Inject constructor(
                         val description = getColumnValue(values, headerMap, "description")
 
                         // Skip if any required field is blank
-                        if (patientUPI.isBlank() || icdCode.isBlank() || description.isBlank()) {
+                        if (patientUPI.isBlank() || icdCode.isBlank()) {
                             diagnosisErrorCount++
                             continue
                         }
