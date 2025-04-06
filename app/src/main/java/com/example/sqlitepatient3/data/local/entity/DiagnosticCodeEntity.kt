@@ -25,7 +25,7 @@ data class DiagnosticCodeEntity(
     val description: String,
     val shorthand: String?,
     val billable: Boolean,
-    val commonCode: Boolean,
+    val commonCode: Int?,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {

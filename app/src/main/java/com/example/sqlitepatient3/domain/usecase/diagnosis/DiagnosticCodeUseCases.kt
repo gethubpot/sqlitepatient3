@@ -61,14 +61,14 @@ class AddDiagnosticCodeUseCase @Inject constructor(
         description: String,
         shorthand: String? = null,
         billable: Boolean = true,
-        commonCode: Boolean = false
+        commonCode: Int? = null // Changed parameter type to Int? and default to null
     ): Long {
         val code = DiagnosticCode(
             icdCode = icdCode,
             description = description,
             shorthand = shorthand,
             billable = billable,
-            commonCode = commonCode
+            commonCode = commonCode // Now assigning Int? to Int? (Correct)
         )
         return diagnosticCodeRepository.insertDiagnosticCode(code)
     }

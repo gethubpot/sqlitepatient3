@@ -54,7 +54,7 @@ object MigrationSteps {
                     description TEXT NOT NULL,
                     shorthand TEXT,
                     billable INTEGER NOT NULL DEFAULT 1,
-                    commonCode INTEGER NOT NULL DEFAULT 0,
+                    commonCode INTEGER NOT NULL DEFAULT 0, -- Stored as 1 for true, 0 for false
                     createdAt INTEGER NOT NULL,
                     updatedAt INTEGER NOT NULL
                 )
@@ -99,6 +99,68 @@ object MigrationSteps {
     }
 
     /**
+     * Changes the commonCode column in diagnostic_codes to nullable INTEGER (v4 to v5).
+     * Uses the table recreation strategy.
+     */
+    fun changeCommonCodeToInt(database: SupportSQLiteDatabase) {
+        try {
+            // 1. Rename the existing table
+            database.execSQL("ALTER TABLE diagnostic_codes RENAME TO diagnostic_codes_old_v4")
+            Log.d(TAG, "Renamed diagnostic_codes to diagnostic_codes_old_v4")
+
+            // 2. Create the new table with the correct schema (commonCode as INTEGER)
+            database.execSQL("""
+                CREATE TABLE diagnostic_codes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    icdCode TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    shorthand TEXT,
+                    billable INTEGER NOT NULL, -- Keep as INTEGER (Boolean)
+                    commonCode INTEGER,        -- Changed to nullable INTEGER
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """)
+            Log.d(TAG, "Created new diagnostic_codes table with commonCode as INTEGER")
+
+            // 3. Copy data from the old table to the new table, converting commonCode
+            //    (Assuming old commonCode was 1 for true, 0 for false)
+            //    We'll map 1 to 1, and 0 or other values to NULL (or keep 0 if preferred)
+            database.execSQL("""
+                INSERT INTO diagnostic_codes (id, icdCode, description, shorthand, billable, commonCode, createdAt, updatedAt)
+                SELECT id, icdCode, description, shorthand, billable,
+                       CASE WHEN commonCode = 1 THEN 1 ELSE NULL END, -- Convert old 1 to new 1, others to NULL
+                       createdAt, updatedAt
+                FROM diagnostic_codes_old_v4
+            """)
+            Log.d(TAG, "Copied data from old table to new table, converting commonCode")
+
+            // 4. Drop the old table
+            database.execSQL("DROP TABLE diagnostic_codes_old_v4")
+            Log.d(TAG, "Dropped old diagnostic_codes_old_v4 table")
+
+            // 5. Recreate indices for the new table
+            database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_diagnostic_codes_icdCode ON diagnostic_codes(icdCode)")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_diagnostic_codes_shorthand ON diagnostic_codes(shorthand)")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_diagnostic_codes_billable ON diagnostic_codes(billable)")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_diagnostic_codes_commonCode ON diagnostic_codes(commonCode)") // Index on new INTEGER column
+            Log.d(TAG, "Recreated indices for new diagnostic_codes table")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error changing commonCode column type", e)
+            // Consider attempting to rollback if possible, e.g., rename _old table back
+            try {
+                database.execSQL("DROP TABLE IF EXISTS diagnostic_codes")
+                database.execSQL("ALTER TABLE diagnostic_codes_old_v4 RENAME TO diagnostic_codes")
+                Log.w(TAG, "Attempted to rollback commonCode change")
+            } catch (rollbackEx: Exception) {
+                Log.e(TAG, "Rollback failed", rollbackEx)
+            }
+            throw e // Re-throw original exception
+        }
+    }
+
+    /**
      * Records a migration entry in the system_properties table
      */
     fun recordMigration(database: SupportSQLiteDatabase, fromVersion: Int, toVersion: Int) {
@@ -106,8 +168,8 @@ object MigrationSteps {
             val timestamp = System.currentTimeMillis().toString()
             database.execSQL(
                 """
-                INSERT OR REPLACE INTO system_properties 
-                (key, value, updatedAt) 
+                INSERT OR REPLACE INTO system_properties
+                (key, value, updatedAt)
                 VALUES ('last_migration', '${fromVersion}_to_${toVersion}', ?)
                 """,
                 arrayOf(timestamp)

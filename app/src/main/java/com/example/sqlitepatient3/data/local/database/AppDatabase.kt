@@ -35,7 +35,7 @@ import com.example.sqlitepatient3.data.local.entity.SystemPropertyEntity
         DiagnosticCodeEntity::class,
         PatientDiagnosisEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

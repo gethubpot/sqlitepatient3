@@ -7,5 +7,5 @@ data class DiagnosticCode(
     val description: String,            // Full description
     val shorthand: String? = null,      // Quick search abbreviation (e.g., "HTN")
     val billable: Boolean = true,       // Flag for billing eligibility
-    val commonCode: Boolean = false     // Flag for frequently used codes
+    val commonCode: Int? = null    // Flag for frequently used codes
 )

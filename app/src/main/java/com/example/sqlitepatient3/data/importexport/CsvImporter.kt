@@ -331,7 +331,7 @@ class CsvImporter @Inject constructor(
                                     description = description,
                                     shorthand = null,
                                     billable = true,
-                                    commonCode = true
+                                    commonCode = null
                                 )
                             )
                             // Add to cache
