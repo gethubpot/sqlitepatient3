@@ -1,23 +1,19 @@
 package com.example.sqlitepatient3.presentation.navigation
 
-import android.app.Activity // Keep this import if you might use activity?.finish()
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
+// Import the new screen
+// Removed unused LocalActivity import if it was there
+// Import the actual AddEdit screen
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext // Keep this import if you might use activity?.finish()
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.activity.compose.LocalActivity
 import com.example.sqlitepatient3.presentation.screens.database.BackupRestoreScreen
 import com.example.sqlitepatient3.presentation.screens.database.DatabaseInfoScreen
-// Import the new screen
+import com.example.sqlitepatient3.presentation.screens.diagnosis.AddEditDiagnosticCodeScreen
 import com.example.sqlitepatient3.presentation.screens.diagnosis.DiagnosticCodeListScreen
 import com.example.sqlitepatient3.presentation.screens.event.AddEditEventScreen
 import com.example.sqlitepatient3.presentation.screens.event.EventDetailScreen
@@ -51,12 +47,11 @@ fun AppNavHost(
                 onNavigateToImportExport = { navController.navigate(ScreenRoute.ImportExport.route) },
                 onNavigateToSettings = { /* TODO: Navigate to Settings */ },
                 onNavigateToDatabaseInfo = { navController.navigate(ScreenRoute.DatabaseInfo.route) },
-                // Add navigation trigger for Diagnostic Codes
-                onNavigateToDiagnosticCodes = { navController.navigate(ScreenRoute.DiagnosticCodeList.route) } // <<<--- ADDED
+                onNavigateToDiagnosticCodes = { navController.navigate(ScreenRoute.DiagnosticCodeList.route) }
             )
         }
 
-        // Patient Screens (Keep existing)
+        // Patient Screens
         composable(route = ScreenRoute.PatientList.route) {
             PatientListScreen(
                 onNavigateUp = { navController.navigateUp() },
@@ -84,15 +79,15 @@ fun AppNavHost(
             route = ScreenRoute.AddEditPatient.route,
             arguments = listOf(navArgument("patientId") { type = NavType.LongType; defaultValue = -1L })
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.getLong("patientId")?.takeIf { it != -1L }
+            // codeId is handled by ViewModel's SavedStateHandle, no need to extract here
             AddEditPatientScreen(
-                patientId = patientId,
+                // patientId parameter was removed from AddEditPatientScreen signature
                 onNavigateUp = { navController.navigateUp() },
                 onSaveComplete = { navController.navigateUp() }
             )
         }
 
-        // Database Info Screen (Keep existing)
+        // Database Info Screen
         composable(route = ScreenRoute.DatabaseInfo.route) {
             DatabaseInfoScreen(
                 onNavigateUp = { navController.navigateUp() },
@@ -100,21 +95,19 @@ fun AppNavHost(
             )
         }
 
-        // Backup and Restore Screen (Keep existing)
+        // Backup and Restore Screen
         composable(route = ScreenRoute.BackupRestore.route) {
             BackupRestoreScreen(
                 onNavigateUp = { navController.navigateUp() }
             )
         }
 
-        // Import/Export Screens (Keep existing)
+        // Import/Export Screens
         composable(route = ScreenRoute.ImportExport.route) {
             ImportExportScreen(
                 onNavigateUp = { navController.navigateUp() },
                 onNavigateToImport = { navController.navigate(ScreenRoute.DataImport.route) },
                 onNavigateToExport = { navController.navigate(ScreenRoute.DataExport.route) }
-                // You could add another lambda here to navigate to DiagnosticCodeList
-                // onNavigateToCodes = { navController.navigate(ScreenRoute.DiagnosticCodeList.route) }
             )
         }
 
@@ -130,10 +123,10 @@ fun AppNavHost(
             )
         }
 
-        // Facility Screens (Keep existing TODOs)
+        // Facility Screens (TODOs)
         // TODO: Add facility screen composables (List, Detail, Add/Edit)
 
-        // Event Screens (Keep existing)
+        // Event Screens
         composable(
             route = ScreenRoute.AddEditEvent.route,
             arguments = listOf(
@@ -141,17 +134,9 @@ fun AppNavHost(
                 navArgument("patientId") { type = NavType.LongType; defaultValue = -1L }
             )
         ) { backStackEntry ->
-            val eventId = backStackEntry.arguments?.getLong("eventId")?.takeIf { it != -1L }
-            val patientId = backStackEntry.arguments?.getLong("patientId")?.takeIf { it != -1L }
-            // Removed unused LocalActivity variable
-
+            // eventId and patientId handled by ViewModel's SavedStateHandle
             AddEditEventScreen(
-                eventId = eventId,
-                patientId = patientId,
-                onNavigateUp = {
-                    // Simplified navigate up logic (consider if special home navigation is needed)
-                    navController.navigateUp()
-                },
+                onNavigateUp = { navController.navigateUp() },
                 onSaveComplete = { navController.navigateUp() }
             )
         }
@@ -175,8 +160,8 @@ fun AppNavHost(
             )
         }
 
-        // --- NEW: Diagnostic Code Screens ---
-        composable(route = ScreenRoute.DiagnosticCodeList.route) { // <<<--- ADDED
+        // --- Diagnostic Code Screens ---
+        composable(route = ScreenRoute.DiagnosticCodeList.route) {
             DiagnosticCodeListScreen(
                 onNavigateUp = { navController.navigateUp() },
                 onCodeClick = { codeId ->
@@ -186,32 +171,25 @@ fun AppNavHost(
             )
         }
 
-        composable( // <<<--- ADDED Placeholder
+        composable( // <<<--- CORRECTED BLOCK
             route = ScreenRoute.AddEditDiagnosticCode.route,
             arguments = listOf(navArgument("codeId") { type = NavType.LongType; defaultValue = -1L })
         ) { backStackEntry ->
-            val codeId = backStackEntry.arguments?.getLong("codeId")?.takeIf { it != -1L }
-            // TODO: Replace with actual AddEditDiagnosticCodeScreen call when created
-            // For now, display a placeholder text
-            Box(modifier=Modifier.fillMaxSize(), contentAlignment = Alignment.Center){
-                Text("Add/Edit Diagnostic Code Screen (ID: $codeId) - TODO")
-            }
-            // Example structure:
-            // AddEditDiagnosticCodeScreen(
-            //     codeId = codeId,
-            //     onNavigateUp = { navController.navigateUp() },
-            //     onSaveComplete = { navController.navigateUp() }
-            // )
+            // codeId is handled by the ViewModel's SavedStateHandle
+            AddEditDiagnosticCodeScreen(
+                onNavigateUp = { navController.navigateUp() },
+                onSaveComplete = { navController.navigateUp() }
+                // ViewModel is automatically provided by Hilt
+            )
         }
-        // --- END NEW Diagnostic Code Screens ---
+        // --- END Diagnostic Code Screens ---
 
         // --- TODO: Patient Diagnosis Screens ---
         // composable(route = ScreenRoute.PatientDiagnosisList.route) { ... }
         // composable(route = ScreenRoute.AddEditPatientDiagnosis.route) { ... }
         // --- END TODO ---
 
-
-        // Settings Screen (Keep existing TODO)
+        // Settings Screen (TODO)
         // TODO: Add settings screen composable
     }
 }
