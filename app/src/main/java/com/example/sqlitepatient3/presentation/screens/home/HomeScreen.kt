@@ -2,13 +2,15 @@ package com.example.sqlitepatient3.presentation.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.* // Keep existing icons
+import androidx.compose.material.icons.outlined.ListAlt // Example new icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector // Import needed for ActionButton icon param
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -26,6 +28,7 @@ fun HomeScreen(
     onNavigateToImportExport: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToDatabaseInfo: () -> Unit,
+    onNavigateToDiagnosticCodes: () -> Unit, // <<<--- ADDED PARAMETER
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val patientCount by viewModel.patientCount.collectAsState()
@@ -54,7 +57,7 @@ fun HomeScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Stats Cards
+            // Stats Cards (No changes here)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -84,7 +87,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action Buttons
+            // Quick Actions (No changes here)
             Text(
                 text = "Quick Actions",
                 style = MaterialTheme.typography.titleMedium,
@@ -111,9 +114,15 @@ fun HomeScreen(
 
             // Database Management Section
             Text(
-                text = "Database Management",
+                text = "Data Management", // Changed title slightly
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+            )
+
+            ActionButton( // <<<--- ADDED BUTTON
+                text = "Manage Diagnostic Codes",
+                icon = Icons.Outlined.ListAlt, // Or Icons.Default.MedicalServices
+                onClick = onNavigateToDiagnosticCodes // Use the new lambda
             )
 
             ActionButton(
@@ -122,23 +131,21 @@ fun HomeScreen(
                 onClick = onNavigateToDatabaseInfo
             )
 
-            // New Backup & Restore button
+            // Backup & Restore button (No changes here)
+            // Note: This button currently navigates to DatabaseInfo first.
+            // Consider changing its onClick to navigate directly to Backup/Restore if desired.
             ActionButton(
                 text = "Backup & Restore",
                 icon = Icons.Default.Backup,
-                onClick = {
-                    // Navigate directly to backup/restore screen
-                    onNavigateToDatabaseInfo()
-                    // Note: In a real implementation, you might want to navigate
-                    // directly to the backup/restore screen instead of going through
-                    // the database info screen. This would require a new navigation function.
-                }
+                onClick = onNavigateToDatabaseInfo // Keep as is or change if needed
             )
+
 
             Spacer(modifier = Modifier.weight(1f))
 
+            // App Version (No changes here)
             Text(
-                text = "SQLitePatient3 v1.0",
+                text = "SQLitePatient3 v1.0", // Consider making this dynamic later
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -147,12 +154,13 @@ fun HomeScreen(
     }
 }
 
+// StatCard (No changes needed)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatCard(
     title: String,
     count: Int,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -184,10 +192,11 @@ fun StatCard(
     }
 }
 
+// ActionButton (No changes needed)
 @Composable
 fun ActionButton(
     text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onClick: () -> Unit
 ) {
     Button(
@@ -204,6 +213,7 @@ fun ActionButton(
     }
 }
 
+// Preview (Update to include new button)
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
@@ -215,79 +225,29 @@ fun HomeScreenPreview() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Stats Cards
+            // Stats Cards (Preview)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                StatCard(
-                    title = "Patients",
-                    count = 42,
-                    icon = Icons.Default.Person,
-                    modifier = Modifier.weight(1f),
-                    onClick = {}
-                )
-                StatCard(
-                    title = "Events",
-                    count = 128,
-                    icon = Icons.Default.Event,
-                    modifier = Modifier.weight(1f),
-                    onClick = {}
-                )
-                StatCard(
-                    title = "Facilities",
-                    count = 7,
-                    icon = Icons.Default.Business,
-                    modifier = Modifier.weight(1f),
-                    onClick = {}
-                )
+                StatCard(title = "Patients", count = 42, icon = Icons.Default.Person, modifier = Modifier.weight(1f), onClick = {})
+                StatCard(title = "Events", count = 128, icon = Icons.Default.Event, modifier = Modifier.weight(1f), onClick = {})
+                StatCard(title = "Facilities", count = 7, icon = Icons.Default.Business, modifier = Modifier.weight(1f), onClick = {})
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action Buttons
-            Text(
-                text = "Quick Actions",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+            // Quick Actions (Preview)
+            Text(text = "Quick Actions", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            ActionButton(text = "Add New Patient", icon = Icons.Default.PersonAdd, onClick = {})
+            ActionButton(text = "Schedule Event", icon = Icons.Default.AddTask, onClick = {})
+            ActionButton(text = "Import/Export Data", icon = Icons.Default.SwapHoriz, onClick = {})
 
-            ActionButton(
-                text = "Add New Patient",
-                icon = Icons.Default.PersonAdd,
-                onClick = {}
-            )
-
-            ActionButton(
-                text = "Schedule Event",
-                icon = Icons.Default.AddTask,
-                onClick = {}
-            )
-
-            ActionButton(
-                text = "Import/Export Data",
-                icon = Icons.Default.SwapHoriz,
-                onClick = {}
-            )
-
-            // Database Management in Preview
-            Text(
-                text = "Database Management",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-            )
-
-            ActionButton(
-                text = "Database Information",
-                icon = Icons.Default.Storage,
-                onClick = {}
-            )
-
-            ActionButton(
-                text = "Backup & Restore",
-                icon = Icons.Default.Backup,
-                onClick = {}
-            )
+            // Data Management (Preview)
+            Text(text = "Data Management", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+            ActionButton(text = "Manage Diagnostic Codes", icon = Icons.Outlined.ListAlt, onClick = {}) // <<<--- ADDED BUTTON TO PREVIEW
+            ActionButton(text = "Database Information", icon = Icons.Default.Storage, onClick = {})
+            ActionButton(text = "Backup & Restore", icon = Icons.Default.Backup, onClick = {})
         }
     }
 }
