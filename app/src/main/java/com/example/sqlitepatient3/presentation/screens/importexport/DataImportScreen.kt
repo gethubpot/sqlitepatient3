@@ -15,13 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.Business // Facility icon
+import androidx.compose.material.icons.filled.FileUpload // Upload icon
+import androidx.compose.material.icons.filled.Info // Info icon
+import androidx.compose.material.icons.filled.ListAlt // Alternative for Code Library
+import androidx.compose.material.icons.filled.MedicalServices // Diagnosis icon
+import androidx.compose.material.icons.filled.Person // Patient icon
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,6 +57,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.sqlitepatient3.presentation.components.ConfirmationDialog
 import kotlinx.coroutines.launch
 
+// Import the updated Enum if it's defined in the ViewModel file
+// import com.example.sqlitepatient3.presentation.screens.importexport.ImportType
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DataImportScreen(
@@ -72,16 +77,16 @@ fun DataImportScreen(
 
     var showConfirmDialog by remember { mutableStateOf(false) }
 
-    // File picker
+    // File picker remains the same
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            viewModel.setSelectedFile(uri, context)
+            viewModel.setSelectedFile(it, context)
         }
     }
 
-    // Show import result as snackbar
+    // Show import result as snackbar remains the same
     LaunchedEffect(importResult) {
         importResult?.let { result ->
             snackbarHostState.showSnackbar(result)
@@ -124,14 +129,14 @@ fun DataImportScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Changed from 2-button to 3-button segmented control
+                // --- MODIFIED Segmented Button Row ---
                 SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp) // Use fillMaxWidth
                 ) {
                     SegmentedButton(
                         selected = importType == ImportType.PATIENTS,
                         onClick = { viewModel.setImportType(ImportType.PATIENTS) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 4), // count = 4
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Person,
@@ -146,7 +151,7 @@ fun DataImportScreen(
                     SegmentedButton(
                         selected = importType == ImportType.FACILITIES,
                         onClick = { viewModel.setImportType(ImportType.FACILITIES) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 4), // count = 4
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Business,
@@ -161,7 +166,7 @@ fun DataImportScreen(
                     SegmentedButton(
                         selected = importType == ImportType.DIAGNOSES,
                         onClick = { viewModel.setImportType(ImportType.DIAGNOSES) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                        shape = SegmentedButtonDefaults.itemShape(index = 2, count = 4), // count = 4
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.MedicalServices,
@@ -172,11 +177,29 @@ fun DataImportScreen(
                     ) {
                         Text("Diagnoses")
                     }
+                    // --- ADDED Code Library Button ---
+                    SegmentedButton(
+                        selected = importType == ImportType.CODE_LIBRARY,
+                        onClick = { viewModel.setImportType(ImportType.CODE_LIBRARY) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 3, count = 4), // index = 3, count = 4
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.ListAlt, // Or Icons.Default.Code
+                                contentDescription = null,
+                                modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                            )
+                        }
+                    ) {
+                        Text("Code Library")
+                    }
+                    // --- END ADDED Code Library Button ---
                 }
+                // --- END MODIFIED Segmented Button Row ---
+
 
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-                // File selection section
+                // File selection section remains the same
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -209,13 +232,14 @@ fun DataImportScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Selected file: $fileName",
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center // Center filename
                             )
                         }
                     }
                 }
 
-                // Format help info
+                // Format help info section
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -241,76 +265,111 @@ fun DataImportScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
+                        // --- MODIFIED Help Text ---
                         when (importType) {
                             ImportType.PATIENTS -> {
-                                Text("Patient CSV should have the following headers:")
+                                Text("Patient CSV must have headers:")
                                 Text(
-                                    text = "firstName, lastName, dateOfBirth (MM/DD/YYYY), isMale (true/false), medicareNumber, facilityCode",
+                                    text = "• Required: firstName, lastName", // Highlight required
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
-
+                                Text(
+                                    text = "• Optional: dateOfBirth (MM/DD/YYYY), isMale (true/false), medicareNumber, facilityCode, isHospice, onCcm, onPsych, onPsyMed",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
-
                                 Text("Example:")
                                 Text(
-                                    text = "John,Doe,01/15/1950,true,123456789A,GH001",
+                                    text = "John,Doe,01/15/1950,true,123456789A,GH001,false,true,false,false",
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
 
                             ImportType.FACILITIES -> {
-                                Text("Facility CSV should have the following headers:")
+                                Text("Facility CSV must have headers:")
                                 Text(
-                                    text = "name, facilityCode, address1, city, state, zipCode, phoneNumber, isActive (true/false)",
+                                    text = "• Required: name", // Highlight required
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
-
+                                Text(
+                                    text = "• Optional: facilityCode, address1, address2, city, state, zipCode, phoneNumber, faxNumber, email, isActive (true/false)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
-
                                 Text("Example:")
                                 Text(
-                                    text = "General Hospital,GH001,123 Main St,Metropolis,NY,10001,555-123-4567,true",
+                                    text = "General Hospital,GH001,123 Main St,,,Metropolis,NY,10001,555-1234,555-5678,,true",
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
 
                             ImportType.DIAGNOSES -> {
-                                Text("Diagnosis CSV should have the following headers:")
+                                Text("Diagnosis Link CSV must have headers:")
                                 Text(
-                                    text = "patientUPI, icdCode, description, priority, isHospiceCode (true/false), active (true/false)",
+                                    text = "• Required: patientUPI, icdCode, description", // Highlight required
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
-
+                                Text(
+                                    text = "• Optional: priority (number, default 1), isHospiceCode (true/false), active (true/false)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
-
                                 Text("Example:")
                                 Text(
-                                    text = "smijoh530915,I10,Essential (primary) hypertension,1,false,true",
+                                    text = "doejoh500115,I10,Essential Hypertension,1,false,true",
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
-
                                 Spacer(modifier = Modifier.height(8.dp))
-
                                 Text(
-                                    text = "Note: Patient UPI format is first 3 letters of lastName + first 3 letters of firstName + birth date in YYMMDD format",
+                                    text = "Note: Imports patient links. Only adds new codes to the library if they don't exist. Does NOT update existing code descriptions.",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(top = 4.dp)
+                                    color = MaterialTheme.colorScheme.error // Or onSurfaceVariant
                                 )
                             }
+                            // --- ADDED Code Library Help ---
+                            ImportType.CODE_LIBRARY -> {
+                                Text("Code Library CSV must have headers:")
+                                Text(
+                                    text = "• Required: icdCode (or code), description (or desc)", // Highlight required & alternatives
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                                Text(
+                                    text = "• Optional: shorthand, billable (true/false)", // Add optional if importer handles them
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Example:")
+                                Text(
+                                    text = "I10,Essential (primary) hypertension", // Simple example
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Note: Updates descriptions of existing codes. Can optionally add new codes if not found.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary // Or onSurfaceVariant
+                                )
+                            }
+                            // --- END ADDED Code Library Help ---
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Import button
+                // Import button remains the same
                 Button(
                     onClick = { showConfirmDialog = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -324,26 +383,30 @@ fun DataImportScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text(if (isLoading) "Importing..." else "Import Data")
+                    Text(if (isLoading) "Importing..." else "Start Import") // Changed text slightly
                 }
             }
 
-            // Loading overlay
+            // Loading overlay remains the same
             if (isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
+                        .padding(16.dp), // Consider matching scaffold padding
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp) // Add padding around indicator and text
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)) // Optional overlay background
                     ) {
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Importing data...",
+                            text = "Importing data...\nPlease wait.",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center
                         )
@@ -355,19 +418,26 @@ fun DataImportScreen(
 
     // Confirmation dialog
     if (showConfirmDialog) {
+        // --- MODIFIED Confirmation Dialog Message ---
+        val confirmationMessage = when(importType) {
+            ImportType.PATIENTS -> "Importing will add new patients from the CSV. Are you sure?"
+            ImportType.FACILITIES -> "Importing will add new facilities from the CSV. Are you sure?"
+            ImportType.DIAGNOSES -> "Importing will link patients to diagnoses from the CSV. It will only add new codes if they don't already exist in your library. Continue?"
+            ImportType.CODE_LIBRARY -> "Importing will update descriptions for existing codes in your library based on the CSV. It may also add new codes if they are not found. Continue?"
+        }
         ConfirmationDialog(
             title = "Confirm Import",
-            message = when(importType) {
-                ImportType.PATIENTS -> "Are you sure you want to import this patient data? This will add new patients to your database."
-                ImportType.FACILITIES -> "Are you sure you want to import this facility data? This will add new facilities to your database."
-                ImportType.DIAGNOSES -> "Are you sure you want to import this diagnosis data? This will add new diagnoses to your database. Make sure you have already imported the patients."
-            },
+            message = confirmationMessage,
             onConfirm = {
                 scope.launch {
                     viewModel.importData(context)
                 }
+                // Keep dialog open until import finishes? No, let Snackbar show result.
+                showConfirmDialog = false
             },
-            onDismiss = { showConfirmDialog = false }
+            onDismiss = { showConfirmDialog = false },
+            confirmText = "Yes, Import" // Changed confirm text
         )
+        // --- END MODIFIED Confirmation Dialog Message ---
     }
 }
